@@ -71,7 +71,9 @@ class SshMachine(HookMixin, Machine):
         return [*self.ssh_base(), *flags, self.target(), 'sh -c ' + shlex.quote(command)]
 
     def in_workdir(self, command: str) -> str:
-        return f'cd {remote_path(self.workdir)} && {command}'
+        # Create it, so run and jobs work before the first sync.
+        workdir = remote_path(self.workdir)
+        return f'mkdir -p {workdir} && cd {workdir} && {command}'
 
     # Operations ------------------------------------------------------------
     def status(self):

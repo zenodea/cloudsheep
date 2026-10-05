@@ -44,7 +44,7 @@
 # zone = "us-central1-a"
 # user = "you_example_com"                 # OS Login user
 # identity_file = "~/.ssh/google_compute_engine"
-# proxy_command = "gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --project=my-project --zone={zone} --verbosity=warning"
+# proxy_command = "gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --project=my-project --zone={zone} --verbosity=error"
 # options = ["UserKnownHostsFile=~/.ssh/cloudsheep_known_hosts", "StrictHostKeyChecking=accept-new"]
 # up = "gcloud compute instances create {host} --project=my-project --zone={zone} ..."
 # down = "gcloud compute instances delete {host} --project=my-project --zone={zone} --quiet"
