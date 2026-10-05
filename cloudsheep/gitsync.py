@@ -3,8 +3,11 @@
 sync   copies tracked and nonignored untracked files (minus secret-looking paths)
        from a local repository to a remote directory. Nothing is deleted remotely.
 collect copies the remote directory into a throwaway clone at the synced base
-       commit, commits the difference and fetches it as a new local branch. The
-       local HEAD, index and working tree are never touched.
+       commit, commits what the machine changed and fetches it as a new local
+       branch. Files that come back exactly as they were synced are left at the
+       base commit, so local uncommitted or untracked files the machine didn't
+       touch stay out of the branch. The local HEAD, index and working tree are
+       never touched.
 
 This is not a secret scanner: review what you sync.
 """
@@ -63,6 +66,18 @@ def files(repo: Path, patterns: list[str]) -> tuple[list[str], list[str]]:
     return keep, skipped
 
 
+def hashes(repo: Path, paths: list[str]) -> dict[str, str]:
+    """Blob ids as git would store them (no objects are written)."""
+    if not paths:
+        return {}
+    out = git_input(repo, ['hash-object', '--stdin-paths'], '\n'.join(paths) + '\n').split()
+    return dict(zip(paths, out))
+
+
+def git_input(repo: Path, args: list[str], text: str) -> str:
+    return run(['git', '-C', str(repo), *args], input=text).stdout
+
+
 def rsync_filters(patterns: list[str]) -> list[str]:
     rules = [f'--include={name}' for name in SECRET_ALLOW]
     for pattern in patterns:
@@ -87,10 +102,30 @@ def sync(machine: str, repo: Path, rsh: list[str], target: str, workdir: str, mk
          str(repo) + '/', f'{target}:{workdir.rstrip("/")}/'], input='\0'.join(keep) + '\0')
     record = {'machine': machine, 'repo': str(repo), 'base': base, 'dirty': dirty, 'workdir': workdir,
               'files': len(keep), 'synced_at': datetime.now(timezone.utc).isoformat(timespec='seconds')}
+    # What was sent, so collect can tell the machine's changes from local ones.
+    synced = hashes(repo, keep) if dirty else {}
     path = _state_file(machine)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=2) + '\n')
+    path.write_text(json.dumps({**record, 'synced': synced}) + '\n')
     return {**record, 'skipped_secret_like': skipped}
+
+
+def _restore_untouched(clone: Path, base: str, synced: dict[str, str]) -> int:
+    """Put files that came back exactly as synced back to their base state."""
+    present = [path for path in synced if os.path.lexists(clone / path) and not os.path.islink(clone / path)]
+    now = hashes(clone, present)
+    untouched = [path for path in present if now.get(path) == synced[path]]
+    if not untouched:
+        return 0
+    in_base = set(git(clone, 'ls-tree', '-r', '-z', '--name-only', base).stdout.split('\0')) - {''}
+    for path in untouched:
+        if path not in in_base:
+            (clone / path).unlink()
+    restore = [path for path in untouched if path in in_base]
+    if restore:
+        git_input(clone, ['checkout', base, '--pathspec-from-file=-', '--pathspec-file-nul'],
+                  '\0'.join(restore) + '\0')
+    return len(untouched)
 
 
 def collect(machine: str, repo: Path, branch: str | None, rsh: list[str], target: str, workdir: str,
@@ -120,6 +155,7 @@ def collect(machine: str, repo: Path, branch: str | None, rsh: list[str], target
         ignore.write_text('' if any(r.startswith('!') for r in rules) else ''.join(r + '\n' for r in rules))
         run(['rsync', '-a', '--delete', '--exclude=.git', *rsync_filters(patterns), f'--exclude-from={ignore}',
              '-e', shlex.join(rsh), f'{target}:{workdir.rstrip("/")}/', str(clone) + '/'])
+        _restore_untouched(clone, base, record.get('synced', {}))
         git(clone, 'add', '-A')
         if git(clone, 'diff', '--cached', '--quiet', check=False).returncode == 0:
             return {'machine': machine, 'base': base, 'changed': False, 'branch': None}

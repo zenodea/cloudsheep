@@ -47,8 +47,10 @@ Templates (the `command` provider and the ssh lifecycle hooks) fill `{name}`, an
   It never deletes remote files. Paths that look like secrets (`.env*` except `.env.example`, keys, `.ssh/`,
   `.aws/`, ...) and your `exclude` list are skipped and reported. This is not a secret scanner.
 - **collect** copies `workdir` into a throwaway clone at the commit you last synced, commits the
-  difference and fetches it as `cloudsheep/<machine>-<time>` (or `--branch`). Your HEAD, index and
-  working tree are untouched. Files ignored by the root `.gitignore` are not transferred back.
+  difference and fetches it as `cloudsheep/<machine>-<time>` (or `--branch`). Files that come back
+  exactly as they were synced stay at the base commit, so the branch holds only what the machine
+  changed, not your local uncommitted or untracked files. Your HEAD, index and working tree are
+  untouched. Files ignored by the root `.gitignore` are not transferred back.
 - **jobs** run detached under `~/.cloudsheep/jobs/<id>` on the machine (`setsid`/`nohup`), so they
   survive disconnects. `logs --follow` polls until the job ends. `cancel` signals its process group.
 - Remote commands run through `sh -c`, so a fish or csh login shell is fine.

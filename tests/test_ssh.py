@@ -62,6 +62,8 @@ class SshProviderTest(Sandbox):
         repo = self.make_repo()
         (repo / 'app.py').write_text('print("v2 dirty")\n')        # dirty tracked
         (repo / 'notes.md').write_text('untracked\n')               # untracked, not ignored
+        (repo / 'todo.md').write_text('local todo\n')               # untracked, edited remotely below
+        (repo / '.env.example').write_text('TOKEN=local-edit\n')     # dirty tracked, untouched remotely
         (repo / '.env').write_text('TOKEN=secret\n')                # secret-looking
         (repo / 'secrets').mkdir()
         (repo / 'secrets' / 'k.txt').write_text('x\n')              # configured exclude
@@ -80,6 +82,7 @@ class SshProviderTest(Sandbox):
         # Work happens on the machine.
         (remote / 'app.py').write_text('print("v3 remote")\n')
         (remote / 'new.py').write_text('print("new")\n')
+        (remote / 'todo.md').write_text('remote todo\n')
         (remote / 'gone.txt').unlink()
         (remote / 'build').mkdir()
         (remote / 'build' / 'big.o').write_text('artifact\n')
@@ -94,7 +97,9 @@ class SshProviderTest(Sandbox):
         self.assertEqual((repo / 'app.py').read_text(), 'print("v2 dirty")\n')
         files = set(self.git(repo, 'ls-tree', '-r', '--name-only', 'cloudsheep/test').split())
         self.assertIn('new.py', files)
-        self.assertIn('notes.md', files)
+        self.assertNotIn('notes.md', files)      # local-only and untouched: stays out of the branch
+        self.assertEqual(self.git(repo, 'show', 'cloudsheep/test:todo.md'), 'remote todo\n')
+        self.assertEqual(self.git(repo, 'show', 'cloudsheep/test:.env.example'), 'TOKEN=\n')   # base version
         self.assertNotIn('gone.txt', files)
         self.assertNotIn('.env', files)
         self.assertNotIn('build/big.o', files)
