@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cloudsheep — herd your VMs</title>
+<meta name="description" content="Herd your VMs from the terminal and from herdr: shells, tunnels, source sync, detached jobs, lifecycle plans, and notifications.">
+<meta name="theme-color" content="#091522">
+<meta property="og:title" content="cloudsheep">
+<meta property="og:description" content="Herd your VMs from the terminal and from herdr.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night: #091522;
+  --night-2: #0d1d2d;
+  --night-3: #12263a;
+  --panel: #0a111b;
+  --line: rgba(164, 204, 225, .15);
+  --line-hi: rgba(164, 204, 225, .3);
+  --ink: #edf7fa;
+  --muted: #9bb2c1;
+  --subtle: #708a9b;
+  --sky: #72d4f7;
+  --sky-hi: #bceeff;
+  --mint: #82e6c2;
+  --amber: #f5b544;
+  --green: #65d69a;
+  --red: #fb8b8b;
+  --sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--night); color: var(--ink); font-family: var(--sans);
+  font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: clip;
+}
+a { color: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--sky); outline-offset: 4px; }
+::selection { background: var(--sky); color: #05202c; }
+code, pre, .mono { font-family: var(--mono); }
+.wrap { width: min(1160px, calc(100% - 32px)); margin-inline: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.skip { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 9px 14px; border-radius: 8px; background: var(--sky); color: #05202c; transform: translateY(-160%); }
+.skip:focus { transform: none; }
+
+/* navigation */
+.nav { position: fixed; inset: 0 0 auto; z-index: 50; border-bottom: 1px solid transparent; transition: background .3s, border-color .3s, backdrop-filter .3s; }
+.nav.scrolled { background: rgba(9,21,34,.78); border-color: var(--line); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); }
+.nav .wrap { height: 66px; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+.brand-mark { position: relative; width: 32px; height: 25px; }
+.brand-mark i { position: absolute; display: block; background: var(--ink); border-radius: 50%; }
+.brand-mark i:nth-child(1) { width: 20px; height: 17px; left: 2px; top: 6px; }
+.brand-mark i:nth-child(2) { width: 14px; height: 14px; left: 11px; top: 2px; }
+.brand-mark i:nth-child(3) { width: 12px; height: 12px; left: 20px; top: 9px; }
+.brand-mark::after { content: ""; position: absolute; width: 8px; height: 11px; right: 0; bottom: 0; border-radius: 45% 45% 55% 55%; background: #172635; }
+.nav nav { display: flex; align-items: center; gap: 5px; }
+.nav nav a { padding: 8px 12px; color: var(--muted); font-size: 15px; text-decoration: none; border-radius: 999px; transition: color .2s, background .2s; }
+.nav nav a:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+.nav .gh { color: var(--ink); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 8px; }
+.nav .gh svg { width: 16px; height: 16px; }
+
+/* reusable */
+section.block { padding: clamp(82px, 11vw, 142px) 0; position: relative; }
+.kicker { margin: 0 0 18px; color: var(--sky); font: 500 13px/1.4 var(--mono); }
+h1, h2, h3 { text-wrap: balance; }
+h1 { margin: 0; font-size: clamp(48px, 7.4vw, 94px); line-height: .92; letter-spacing: -.045em; font-weight: 800; }
+h2 { margin: 0 0 22px; font-size: clamp(36px, 4.8vw, 62px); line-height: 1; letter-spacing: -.035em; font-weight: 800; }
+h2 .dim { color: var(--subtle); }
+.lede { max-width: 36em; margin: 27px 0 32px; color: var(--muted); font-size: clamp(18px, 2vw, 21px); }
+.lede strong, .body strong { color: var(--ink); font-weight: 600; }
+.body { max-width: 35em; color: var(--muted); font-size: 18px; }
+.body p { margin: 0 0 16px; }
+.split { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: clamp(40px, 7vw, 94px); align-items: center; }
+.split > * { min-width: 0; }
+.btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 21px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; font-size: 16px; font-weight: 650; transition: transform .2s var(--ease), background .2s, border-color .2s; }
+.btn:hover { transform: translateY(-2px); border-color: var(--line-hi); }
+.btn.primary { color: #06202b; background: var(--sky); border-color: transparent; box-shadow: 0 16px 42px -18px rgba(114,212,247,.85); }
+.btn.primary:hover { background: var(--sky-hi); }
+.btn svg { width: 17px; height: 17px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font: 12px/1 var(--mono); }
+.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 14px var(--mint); }
+.fade { opacity: 0; transform: translateY(22px); transition: opacity .75s var(--ease), transform .75s var(--ease); }
+.fade.in { opacity: 1; transform: none; }
+
+/* hero */
+.hero { min-height: 100svh; display: grid; align-items: center; position: relative; overflow: hidden; padding: 104px 0 72px; }
+.hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(70% 58% at 76% 36%, rgba(72,173,212,.19), transparent 68%), linear-gradient(0deg, var(--night), transparent 25%); }
+.hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.03fr) minmax(0, .97fr); align-items: center; gap: 28px; z-index: 2; }
+.hero h1 span { color: var(--sky); }
+.hero .eyebrow { display: flex; gap: 10px; align-items: center; margin: 0 0 22px; color: var(--muted); font: 13px var(--mono); }
+.hero .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(130,230,194,.5); animation: ping 2s infinite; }
+.quick { display: inline-flex; max-width: 100%; align-items: center; gap: 11px; margin-top: 26px; border: 1px solid var(--line); background: rgba(5,13,21,.55); border-radius: 12px; padding: 9px 10px 9px 14px; }
+.quick code { color: #cde1e9; font-size: 12px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+.quick .prompt { color: var(--sky); }
+.quick button { flex: none; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); padding: 5px 8px; font: 11px var(--mono); cursor: pointer; }
+.quick button:hover { color: var(--ink); border-color: var(--line-hi); }
+.sky-scene { position: relative; height: min(620px, 72vh); min-height: 480px; }
+.orbit { position: absolute; left: 50%; top: 50%; width: min(410px, 82vw); aspect-ratio: 1; transform: translate(-46%,-49%); border: 1px solid rgba(114,212,247,.13); border-radius: 50%; }
+.orbit::before, .orbit::after { content: ""; position: absolute; inset: 14%; border: 1px dashed rgba(114,212,247,.11); border-radius: 50%; }
+.orbit::after { inset: 31%; border-style: solid; }
+.vm-core { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; transform: translate(-46%,-49%); border-radius: 38px; border: 1px solid rgba(188,238,255,.28); background: linear-gradient(145deg, rgba(114,212,247,.15), rgba(9,21,34,.7)); box-shadow: 0 30px 90px -22px rgba(58,169,211,.6), inset 0 0 35px rgba(114,212,247,.05); display: grid; place-items: center; }
+.vm-core svg { width: 68px; color: var(--sky-hi); }
+.vm-core::after { content: "VMs"; position: absolute; bottom: 12px; color: var(--subtle); font: 10px var(--mono); letter-spacing: .14em; }
+.cloud-sheep { --s: 1; position: absolute; width: calc(110px * var(--s)); height: calc(61px * var(--s)); animation: float 6s var(--ease) infinite alternate; filter: drop-shadow(0 16px 22px rgba(0,0,0,.28)); }
+.cloud-sheep .wool { position: absolute; left: 5%; bottom: 7%; width: 77%; height: 67%; background: #dff4f8; border-radius: 50%; }
+.cloud-sheep .wool::before, .cloud-sheep .wool::after { content: ""; position: absolute; background: inherit; border-radius: 50%; }
+.cloud-sheep .wool::before { width: 54%; height: 104%; left: 16%; bottom: 19%; }
+.cloud-sheep .wool::after { width: 44%; height: 88%; right: -4%; bottom: 4%; }
+.cloud-sheep .face { position: absolute; right: 4%; bottom: 0; width: 31%; height: 53%; z-index: 2; background: #1b2a37; border-radius: 48% 52% 46% 46%; }
+.cloud-sheep .face::before { content: ""; position: absolute; left: 22%; top: 27%; width: 5px; height: 5px; border-radius: 50%; background: var(--sky-hi); box-shadow: 13px 0 0 var(--sky-hi); }
+.cloud-sheep .legs { position: absolute; bottom: -9%; left: 30%; width: 8%; height: 31%; background: #233745; border-radius: 5px; box-shadow: 35px 2px 0 #233745; }
+.s1 { --s: 1.02; left: 3%; top: 18%; animation-delay: -.8s; }
+.s2 { --s: .68; right: 1%; top: 12%; animation-delay: -3.3s; }
+.s3 { --s: .82; right: 5%; bottom: 13%; animation-delay: -1.9s; }
+.s4 { --s: .54; left: 16%; bottom: 13%; animation-delay: -4.6s; }
+.route { position: absolute; height: 2px; transform-origin: left; background: linear-gradient(90deg, transparent, var(--sky), transparent); opacity: .35; animation: route 3.8s linear infinite; }
+.r1 { width: 42%; left: 12%; top: 31%; transform: rotate(20deg); }
+.r2 { width: 38%; left: 49%; top: 53%; transform: rotate(-30deg); animation-delay: -1.4s; }
+.r3 { width: 34%; left: 22%; top: 67%; transform: rotate(-32deg); animation-delay: -2.6s; }
+@keyframes float { to { transform: translateY(-16px) rotate(1.5deg); } }
+@keyframes ping { 80%,100% { box-shadow: 0 0 0 10px rgba(130,230,194,0); } }
+@keyframes route { 0% { opacity: 0; clip-path: inset(0 100% 0 0); } 25%,70% { opacity: .55; } 100% { opacity: 0; clip-path: inset(0 0 0 100%); } }
+
+/* terminal */
+.terminal-section { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: radial-gradient(80% 80% at 80% 50%, rgba(114,212,247,.06), transparent 65%); }
+.term-wrap { margin-top: 48px; border: 1px solid var(--line); border-radius: 22px; background: #060d15; overflow: hidden; box-shadow: 0 45px 100px -55px #000; }
+.term-bar { min-height: 46px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 15px; color: var(--subtle); font: 12px var(--mono); }
+.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #203044; }
+.term-bar span { margin-left: 7px; }
+.term-bar button { margin-left: auto; color: var(--muted); border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 5px 9px; font: 11px var(--mono); cursor: pointer; }
+.term-bar button:hover { color: var(--ink); border-color: var(--line-hi); }
+.term-screen { height: 520px; padding: 18px 20px 24px; overflow: hidden; font: 12.5px/1.58 var(--mono); color: #c9dbe5; }
+.term-lines { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.tl { flex: none; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.58em; animation: line-in .22s ease-out; }
+.tl.cmd { color: var(--ink); margin-top: 12px; }
+.tl.cmd::before { content: "$ "; color: var(--sky); }
+.tl.ok { color: var(--green); }
+.tl.warn { color: var(--amber); }
+.tl.dim { color: var(--subtle); }
+@keyframes line-in { from { opacity: 0; transform: translateY(4px); } }
+.command-cloud { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 28px; }
+.command-cloud code { border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font-size: 12px; }
+
+/* providers */
+.section-head { display: grid; grid-template-columns: 1fr minmax(280px, 440px); gap: 32px; align-items: end; margin-bottom: 44px; }
+.providers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.provider { display: flex; flex-direction: column; min-height: 410px; border: 1px solid var(--line); border-radius: 22px; padding: 24px; background: linear-gradient(145deg, rgba(255,255,255,.025), transparent 65%); transition: transform .25s var(--ease), border-color .25s; }
+.provider:hover { transform: translateY(-4px); border-color: var(--line-hi); }
+.provider-icon { width: 46px; height: 46px; border: 1px solid var(--line); border-radius: 14px; display: grid; place-items: center; color: var(--sky); background: var(--night-2); }
+.provider-icon svg { width: 24px; height: 24px; }
+.provider h3 { margin: 22px 0 4px; font-size: 23px; letter-spacing: -.02em; }
+.provider > p { color: var(--muted); margin: 0 0 20px; font-size: 15.5px; }
+.provider pre { margin: auto 0 0; border-top: 1px solid var(--line); padding-top: 18px; color: #aec6d4; white-space: pre-wrap; font: 11.4px/1.65 var(--mono); }
+.provider pre .key { color: var(--sky-hi); }
+.provider pre .str { color: var(--mint); }
+
+/* safety */
+.safe { background: var(--night-2); border-block: 1px solid var(--line); overflow: hidden; }
+.safe-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: clamp(44px, 7vw, 100px); align-items: start; }
+.plan-card { position: sticky; top: 100px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #07101a; }
+.plan-card .top { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); }
+.plan-card pre { margin: 0; padding: 22px; color: #c9dbe5; font: 12px/1.75 var(--mono); white-space: pre-wrap; }
+.plan-card .c { color: var(--sky); }
+.plan-card .n { color: var(--amber); }
+.guards { display: grid; gap: 0; }
+.guard { display: grid; grid-template-columns: 44px 1fr; gap: 18px; padding: 26px 0; border-top: 1px solid var(--line); }
+.guard:first-child { border-top: 0; padding-top: 0; }
+.guard .num { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--sky); font: 12px var(--mono); }
+.guard h3 { margin: 3px 0 6px; font-size: 21px; }
+.guard p { margin: 0; color: var(--muted); font-size: 16px; }
+.guard em { color: var(--subtle); font-style: normal; }
+
+/* herdr */
+.herdr-stage { position: relative; min-height: 570px; border: 1px solid var(--line); border-radius: 26px; padding: 16px; background: linear-gradient(145deg, #0c1825, #07101a); box-shadow: 0 50px 100px -70px #000; overflow: hidden; }
+.herdr-tabs { display: flex; gap: 7px; padding: 4px 2px 14px; color: var(--subtle); font: 11px var(--mono); }
+.herdr-tabs span { padding: 7px 12px; border-radius: 999px; }
+.herdr-tabs .on { color: var(--ink); background: rgba(255,255,255,.06); border: 1px solid var(--line); }
+.panes { display: grid; height: 495px; grid-template-columns: 1.15fr .85fr; gap: 8px; }
+.pane { position: relative; border: 1px solid var(--line); border-radius: 13px; background: #050b12; padding: 14px; color: #a9c0ce; font: 11px/1.65 var(--mono); overflow: hidden; }
+.pane .pane-title { display: block; margin-bottom: 14px; color: var(--subtle); font-size: 10px; }
+.pane .prompt { color: var(--sky); }
+.side-panes { display: grid; grid-template-rows: 1fr 1fr; gap: 8px; }
+.picker { position: absolute; z-index: 5; width: min(370px, calc(100% - 32px)); left: 50%; top: 52%; transform: translate(-50%,-50%); border: 1px solid rgba(188,238,255,.25); border-radius: 17px; background: rgba(14,29,45,.97); box-shadow: 0 30px 90px rgba(0,0,0,.65); overflow: hidden; }
+.picker-head { padding: 12px 15px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); display: flex; justify-content: space-between; }
+.picker-list { padding: 8px; }
+.pick { display: grid; grid-template-columns: 1fr auto; gap: 15px; padding: 10px 11px; border-radius: 9px; color: var(--muted); font: 12px var(--mono); }
+.pick b { color: var(--ink); font-weight: 500; display: block; }
+.pick small { color: var(--subtle); }
+.pick.on { background: var(--sky); color: #06202b; }
+.pick.on b, .pick.on small { color: #06202b; }
+.herdr-copy .key-list { display: grid; gap: 12px; margin-top: 28px; }
+.key-row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; border-top: 1px solid var(--line); padding-top: 13px; color: var(--muted); font-size: 15px; }
+.key-row code { color: var(--ink); font-size: 12px; }
+.notice { margin-top: 24px; border: 1px solid var(--line); border-radius: 16px; padding: 15px 17px; color: var(--muted); background: rgba(255,255,255,.025); font-size: 14px; }
+.notice b { color: var(--mint); }
+
+/* Shepherd */
+.shepherd { padding-block: clamp(72px, 9vw, 110px); }
+.shepherd-card { position: relative; display: grid; grid-template-columns: 1fr 310px; align-items: center; gap: 40px; min-height: 420px; border: 1px solid rgba(245,181,68,.24); border-radius: 28px; padding: clamp(28px, 6vw, 72px); overflow: hidden; background: radial-gradient(75% 120% at 90% 50%, rgba(245,181,68,.11), transparent 68%), #0c1825; }
+.shepherd-card .kicker { color: var(--amber); }
+.shepherd-card .btn { border-color: rgba(245,181,68,.3); }
+.phone { width: 248px; height: 456px; justify-self: center; align-self: end; margin-bottom: -85px; border-radius: 40px; padding: 9px; background: linear-gradient(150deg,#304056,#111a26); box-shadow: 0 35px 80px -30px #000; }
+.phone-screen { height: 100%; border-radius: 32px; background: #080d12; padding: 44px 14px 18px; overflow: hidden; }
+.phone-screen h3 { margin: 0 0 3px; font-size: 24px; }
+.phone-screen > p { margin: 0 0 16px; color: #777; font-size: 10px; }
+.machine-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; padding: 10px; border: 1px solid #262c33; border-radius: 13px; background: #12171d; }
+.machine-row .micon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #20262d; }
+.machine-row b { display: block; font-size: 12px; }
+.machine-row span { color: #888; font-size: 9px; }
+.machine-row i { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; background: var(--green); }
+.machine-row:last-child i { background: var(--subtle); }
+.wip { display: inline-flex; margin-bottom: 18px; padding: 6px 9px; border-radius: 999px; background: rgba(245,181,68,.1); color: var(--amber); font: 11px var(--mono); }
+
+/* install */
+.install { border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--night), #060d15); }
+.steps { list-style: none; padding: 0; margin: 30px 0 0; counter-reset: step; display: grid; gap: 22px; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 39px 1fr; gap: 14px; color: var(--muted); }
+.steps li::before { content: counter(step); width: 33px; height: 33px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--sky); font: 12px var(--mono); }
+.steps b { color: var(--ink); display: block; margin-bottom: 2px; }
+.install-shell { border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: #050b12; }
+.install-shell .bar { padding: 13px 17px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); }
+.install-shell pre { min-height: 330px; margin: 0; padding: 22px; color: #c9dbe5; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.8 var(--mono); }
+.install-shell .p { color: var(--sky); }
+.install-shell .good { color: var(--mint); }
+.requirements { margin-top: 28px; color: var(--subtle); font-size: 14px; }
+
+/* footer */
+footer { position: relative; overflow: hidden; padding: 90px 0 45px; border-top: 1px solid var(--line); background: #050b12; }
+footer .big { max-width: 9em; margin: 0; font-size: clamp(48px, 8vw, 102px); line-height: .9; letter-spacing: -.05em; font-weight: 800; }
+footer .big span { color: var(--sky); }
+.footer-links { display: flex; gap: 21px; flex-wrap: wrap; margin-top: 45px; color: var(--muted); font-size: 14px; }
+.footer-links a { text-decoration: none; }
+.footer-links a:hover { color: var(--ink); }
+.footer-sheep { position: absolute; right: max(12px, calc(50% - 570px)); bottom: -15px; width: min(380px, 38vw); opacity: .9; }
+
+/* Grid items default to min-width: auto, so one nowrap snippet would widen the whole page. */
+.hero-grid > *, .split > *, .safe-grid > *, .providers > *, .section-head > *, .shepherd-card > *,
+.guard > *, .steps li > *, .key-row > *, .panes > * { min-width: 0; }
+pre { max-width: 100%; overflow-x: auto; }
+.steps code, .guard code, .lede code { overflow-wrap: anywhere; }
+/* Decorative sky sheep may drift past the edge; clip (not hidden) keeps the sticky nav working. */
+html, body { overflow-x: clip; }
+@media (max-width: 900px) {
+  .hero-grid, .split, .safe-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-top: 120px; }
+  .hero-grid { gap: 20px; }
+  .sky-scene { height: 480px; min-height: 0; }
+  .providers { grid-template-columns: minmax(0, 1fr); }
+  .provider { min-height: 0; }
+  .provider pre { margin-top: 20px; }
+  .section-head { grid-template-columns: minmax(0, 1fr); }
+  .section-head .body { max-width: 38em; }
+  .plan-card { position: static; }
+  .herdr-stage { order: -1; }
+  .shepherd-card { grid-template-columns: 1fr 260px; }
+}
+@media (max-width: 680px) {
+  body { font-size: 16px; }
+  .nav nav a:not(.gh) { display: none; }
+  .hero { min-height: auto; }
+  .sky-scene { height: 390px; margin-inline: -8px; }
+  .orbit { width: min(330px, 84vw); }
+  .vm-core { width: 104px; height: 104px; border-radius: 30px; }
+  .vm-core svg { width: 54px; }
+  .term-screen { height: 480px; padding-inline: 14px; font-size: 10.8px; }
+  .command-cloud { gap: 6px; }
+  .command-cloud code { font-size: 10.5px; }
+  .panes { grid-template-columns: 1fr; }
+  .side-panes { display: none; }
+  .herdr-stage { min-height: 500px; }
+  .key-row { grid-template-columns: 1fr; gap: 4px; }
+  .shepherd-card { grid-template-columns: 1fr; padding-bottom: 0; }
+  .phone { width: 230px; height: 420px; margin-top: 10px; }
+  footer { padding-bottom: 170px; }
+  .footer-sheep { width: 250px; right: -20px; }
+}
+@media (max-width: 390px) {
+  .wrap { width: min(100% - 24px, 1160px); }
+  .btn { padding-inline: 17px; }
+  .quick { width: 100%; }
+  .cloud-sheep { transform: scale(.9); }
+  .term-bar span { display: none; }
+  .provider { padding: 20px; }
+  .herdr-stage { padding: 10px; }
+  .picker { width: calc(100% - 20px); }
+  .guard { grid-template-columns: 37px 1fr; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .fade { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="cloudsheep home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>cloudsheep</a>
+    <nav aria-label="Primary">
+      <a href="#terminal">CLI</a>
+      <a href="#providers">Providers</a>
+      <a href="#herdr">herdr</a>
+      <a href="#install">Install</a>
+      <a class="gh" href="https://github.com/zenodea/cloudsheep"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow"><i aria-hidden="true"></i>one small CLI · many kinds of machine</p>
+      <h1>Herd your<br><span>VMs.</span></h1>
+      <p class="lede">Shells, port tunnels, source sync, detached jobs, lifecycle, and notifications—from your terminal and from <strong>herdr</strong>.</p>
+      <div class="btns">
+        <a class="btn primary" href="#install">Get cloudsheep <span aria-hidden="true">→</span></a>
+        <a class="btn" href="https://github.com/zenodea/cloudsheep">View on GitHub</a>
+      </div>
+      <div class="quick" aria-label="Quick install command">
+        <code><span class="prompt">$</span> ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/cloudsheep</code>
+        <button type="button" data-copy aria-label="Copy install command">copy</button>
+      </div>
+    </div>
+    <div class="sky-scene" aria-hidden="true">
+      <div class="orbit"></div>
+      <div class="route r1"></div><div class="route r2"></div><div class="route r3"></div>
+      <div class="vm-core"><svg viewBox="0 0 80 64" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="7" width="64" height="20" rx="5"/><rect x="8" y="37" width="64" height="20" rx="5"/><path d="M17 17h1m7 0h1m-9 30h1m7 0h1M35 17h27M35 47h27" stroke-linecap="round"/></svg></div>
+      <div class="cloud-sheep s1"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
+      <div class="cloud-sheep s2"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
+      <div class="cloud-sheep s3"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
+      <div class="cloud-sheep s4"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="block terminal-section" id="terminal">
+  <div class="wrap">
+    <div class="section-head">
+      <div><p class="kicker">// one working session</p><h2>Send it out.<br><span class="dim">Bring it home.</span></h2></div>
+      <div class="body"><p>List your machines, send the repo, start work that outlives your connection, follow the output, then collect the result as a branch.</p></div>
+    </div>
+    <div class="term-wrap fade">
+      <div class="term-bar"><i></i><i></i><i></i><span>cloudsheep · ~/src/flock</span><button type="button" id="replay">replay</button></div>
+      <div class="term-screen" role="img" aria-label="An animated terminal session using cloudsheep">
+        <div class="term-lines" id="termLines">
+          <div class="tl cmd">cloudsheep ls</div>
+          <div class="tl">devbox  ssh         ubuntu@devbox.example.com</div>
+          <div class="tl">heavy   gcp-worker  task heavy (no lease)</div>
+          <div class="tl">lima    command     default</div>
+          <div class="tl cmd">cloudsheep sync devbox</div>
+          <div class="tl">machine: devbox</div><div class="tl">repo: /Users/you/src/flock</div><div class="tl">base: 8c19d9a7c12af39b70d8c1490f35939cadd6240a</div><div class="tl">dirty: True</div><div class="tl">workdir: ~/src/flock</div><div class="tl">files: 184</div><div class="tl">synced_at: 2026-03-09T23:08:42+00:00</div><div class="tl">skipped_secret_like:</div><div class="tl warn">  - .env</div>
+          <div class="tl cmd">cloudsheep job devbox --job build -- make -j16</div>
+          <div class="tl">machine: devbox</div><div class="tl">job: build</div><div class="tl ok">state: submitted</div><div class="tl">command:</div><div class="tl">  - make</div><div class="tl">  - -j16</div>
+          <div class="tl cmd">cloudsheep logs devbox build --follow</div>
+          <div class="tl">[ 91%] Linking flock</div><div class="tl">[100%] Built target flock</div><div class="tl ok">cloudsheep: job build completed (exit 0)</div>
+          <div class="tl cmd">cloudsheep collect devbox</div>
+          <div class="tl">machine: devbox</div><div class="tl">base: 8c19d9a7c12af39b70d8c1490f35939cadd6240a</div><div class="tl">changed: True</div><div class="tl ok">branch: cloudsheep/devbox-20260309-231410</div><div class="tl">commit: 64ff2bba672cc04b5f775a432824513c2bd8110c</div><div class="tl">stat:</div><div class="tl">  src/flock.py | 18 ++++++++++++------</div><div class="tl">  1 file changed, 12 insertions(+), 6 deletions(-)</div>
+          <div class="tl cmd">cloudsheep down devbox</div>
+          <div class="tl">machine: devbox</div><div class="tl">action: down</div><div class="tl">applied: False</div><div class="tl">would_run: gcloud compute instances stop devbox --zone europe-west2-a</div><div class="tl warn">nothing done; rerun with --yes to apply</div>
+        </div>
+      </div>
+    </div>
+    <div class="command-cloud fade" aria-label="Cloudsheep commands">
+      <code>ls</code><code>status</code><code>shell</code><code>run</code><code>tunnel</code><code>sync</code><code>collect</code><code>job</code><code>jobs</code><code>logs</code><code>cancel</code><code>up</code><code>down</code><code>extend</code><code>ssh-config</code><code>watch</code><code>open</code>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="providers">
+  <div class="wrap">
+    <div class="section-head">
+      <div><p class="kicker">// bring your own machine</p><h2>Three ways<br>into the flock.</h2></div>
+      <div class="body"><p>Each machine names a provider. Capabilities are explicit, and an unsupported operation fails cleanly.</p></div>
+    </div>
+    <div class="providers">
+      <article class="provider fade">
+        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3m6 0h4"/></svg></div>
+        <h3>ssh</h3><p>Anything you can SSH into: a cloud VM, a guest, or a box under the desk.</p>
+        <pre><span class="key">[machines.devbox]</span>
+provider = <span class="str">"ssh"</span>
+host = <span class="str">"devbox.example.com"</span>
+user = <span class="str">"ubuntu"</span>
+workdir = <span class="str">"~/src/myrepo"</span>
+ports = { app = 3000 }</pre>
+      </article>
+      <article class="provider fade">
+        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16M8 3 4 7l4 4m8 2 4 4-4 4"/></svg></div>
+        <h3>command</h3><p>Lima, Multipass, OrbStack, Tart, or another VM tool with a CLI. Give each operation a shell template.</p>
+        <pre><span class="key">[machines.lima]</span>
+provider = <span class="str">"command"</span>
+instance = <span class="str">"default"</span>
+status = <span class="str">"limactl list {instance} --json"</span>
+shell = <span class="str">"limactl shell {instance}"</span>
+up = <span class="str">"limactl start {instance}"</span></pre>
+      </article>
+      <article class="provider fade">
+        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7.5 18.5h9.2a4.3 4.3 0 0 0 .4-8.6A6 6 0 0 0 5.7 8a5.3 5.3 0 0 0 1.8 10.5Z"/><path d="M9 14h6m-3-3v6"/></svg></div>
+        <h3>gcp-worker</h3><p>Bundle's disposable GCP workers, with agent.py retaining authority over leases, caps, source, and deletion.</p>
+        <pre><span class="key">[providers.gcp-worker]</span>
+kit = <span class="str">"~/Work/bundle/scripts/gcp-worker"</span>
+repo = <span class="str">"~/Work/bundle"</span>
+
+<span class="key">[machines.heavy]</span>
+provider = <span class="str">"gcp-worker"</span>
+task = <span class="str">"heavy"</span>
+create = { lease = <span class="str">"1h"</span>, ttl = <span class="str">"4h"</span> }</pre>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="block safe" id="safe">
+  <div class="wrap safe-grid">
+    <div>
+      <p class="kicker">// safe by default</p><h2>See the move<br>before it happens.</h2>
+      <div class="body"><p>Lifecycle commands print their plan first. Add <code>--yes</code> only when it looks right.</p></div>
+      <div class="plan-card fade">
+        <div class="top"><span>cloudsheep down heavy</span><span>plan</span></div>
+        <pre>machine: heavy
+action: down
+applied: False
+effect: <span class="n">collects into a new branch, then DELETES the VM</span>
+would_run:
+  python3 agent.py release ...
+
+<span class="c">nothing done; rerun with --yes to apply</span></pre>
+      </div>
+    </div>
+    <div class="guards">
+      <article class="guard fade"><span class="num">01</span><div><h3>Plan, then apply</h3><p><code>up</code>, <code>down</code>, and <code>extend</code> show the action without applying it. <code>--yes</code> is the deliberate step.</p></div></article>
+      <article class="guard fade"><span class="num">02</span><div><h3>Collect, don't overwrite</h3><p>Changes come back on a new local branch. Your HEAD, index, and working tree stay untouched.</p></div></article>
+      <article class="guard fade"><span class="num">03</span><div><h3>Skip secret-looking paths</h3><p>SSH sync reports and skips <code>.env*</code>, keys, <code>.ssh/</code>, <code>.aws/</code>, and related paths (while allowing example, sample, and template env files). <em>It is a useful guardrail, not a secret scanner.</em></p></div></article>
+      <article class="guard fade"><span class="num">04</span><div><h3>Disconnect freely</h3><p>On SSH machines, detached jobs live under <code>~/.cloudsheep/jobs</code> and survive your connection. Follow logs later, or cancel the process group.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="herdr">
+  <div class="wrap split">
+    <div class="herdr-copy">
+      <p class="kicker">// from herdr</p><h2>Keep the flock<br>in your multiplexer.</h2>
+      <div class="body"><p>Pick a machine, then an action. Shells open as named tabs; logs and tunnels open in splits. Sync and collect use the focused pane's repo.</p></div>
+      <div class="key-list fade">
+        <div class="key-row"><code>prefix + u</code><span>Open the machine and action picker.</span></div>
+        <div class="key-row"><code>prefix + shift + u</code><span>Toggle <code>cloudsheep watch</code> in the background.</span></div>
+        <div class="key-row"><code>cloudsheep open</code><span>Build your own tab and split bindings.</span></div>
+      </div>
+      <div class="notice fade"><b>🐑 heavy</b> · job build completed (exit 0)<br><span>Watch also warns when a lease or hard deadline is within 20 minutes.</span></div>
+    </div>
+    <div class="herdr-stage fade" aria-label="Mockup of cloudsheep inside herdr">
+      <div class="herdr-tabs"><span>api</span><span class="on">🐑 devbox</span><span>docs</span></div>
+      <div class="panes">
+        <div class="pane"><span class="pane-title">shell · devbox</span><span class="prompt">ubuntu@devbox</span>:~/src/flock$ git status<br>On branch main<br>nothing to commit, working tree clean</div>
+        <div class="side-panes"><div class="pane"><span class="pane-title">logs · build</span>[ 91%] Linking flock<br><span style="color:var(--green)">[100%] Built target flock</span></div><div class="pane"><span class="pane-title">tunnel · app</span>http://127.0.0.1:3000<br>→ devbox:3000<br><br><span style="color:var(--subtle)">Ctrl-C to close</span></div></div>
+      </div>
+      <div class="picker">
+        <div class="picker-head"><span>cloudsheep</span><span>machine → action</span></div>
+        <div class="picker-list">
+          <div class="pick"><span><b>devbox</b><small>ssh · reachable</small></span><span>shell</span></div>
+          <div class="pick on"><span><b>heavy</b><small>gcp-worker · running</small></span><span>logs ▸</span></div>
+          <div class="pick"><span><b>lima</b><small>command · stopped</small></span><span>up</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="shepherd" id="shepherd">
+  <div class="wrap">
+    <div class="shepherd-card fade">
+      <div>
+        <span class="wip">in progress</span>
+        <p class="kicker">// Machines in Shepherd</p>
+        <h2>Your flock,<br>from your phone.</h2>
+        <div class="body"><p>A Machines screen for <a href="https://dea.dev/shepherd/">Shepherd</a> is being built right now—the same family, one more way to keep an eye on the herd.</p></div>
+        <a class="btn" href="https://dea.dev/shepherd/">Meet Shepherd <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="phone" aria-label="Concept mockup of Machines in Shepherd">
+        <div class="phone-screen"><h3>Machines</h3><p>3 machines · 2 reachable</p>
+          <div class="machine-row"><span class="micon">🐑</span><span><b>devbox</b><span>reachable · 1 job</span></span><i></i></div>
+          <div class="machine-row"><span class="micon">☁</span><span><b>heavy</b><span>running · lease 52m</span></span><i></i></div>
+          <div class="machine-row"><span class="micon">⌘</span><span><b>lima</b><span>stopped</span></span><i></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block install" id="install">
+  <div class="wrap split">
+    <div>
+      <p class="kicker">// install</p><h2>Two commands.<br>Then add a machine.</h2>
+      <ol class="steps fade">
+        <li><div><b>Put the CLI on your path.</b>Cloudsheep is Python standard library only.</div></li>
+        <li><div><b>Write the starter config.</b><code>cloudsheep init</code> copies the example to <code>~/.config/cloudsheep/machines.toml</code>.</div></li>
+        <li><div><b>Uncomment what you use.</b>Plain SSH, a command-line VM tool, or bundle's GCP workers.</div></li>
+      </ol>
+      <p class="requirements">Needs Python 3.11+. The SSH provider uses <code>ssh</code> and <code>rsync</code>; the herdr picker uses <code>fzf</code> and <code>jq</code>.</p>
+    </div>
+    <div class="install-shell fade">
+      <div class="bar">~/Work/cloudsheep</div>
+      <pre><span class="p">$</span> ln -s ~/Work/cloudsheep/bin/cloudsheep \
+  ~/.local/bin/cloudsheep
+<span class="p">$</span> cloudsheep init
+<span class="good">wrote ~/.config/cloudsheep/machines.toml; edit it to add your machines</span>
+
+<span class="p">$</span> $EDITOR ~/.config/cloudsheep/machines.toml
+<span class="p">$</span> cloudsheep ls
+
+devbox  ssh         ubuntu@devbox.example.com
+lima    command     default
+
+<span class="p">$</span> cloudsheep shell devbox
+<span class="good">ubuntu@devbox</span>:~/src/myrepo$ <span class="caret">_</span></pre>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="big">Go herd<br>some <span>clouds.</span></p>
+    <div class="footer-links">
+      <a href="https://github.com/zenodea/cloudsheep">GitHub</a>
+      <a href="https://github.com/zenodea/cloudsheep#providers">Providers</a>
+      <a href="https://github.com/zenodea/cloudsheep#herdr">herdr setup</a>
+      <a href="https://dea.dev/shepherd/">Shepherd</a>
+    </div>
+  </div>
+  <svg class="footer-sheep" viewBox="0 0 480 300" aria-hidden="true">
+    <defs><radialGradient id="wool" cx="60%" cy="25%" r="85%"><stop offset="0" stop-color="#f2fdff"/><stop offset="1" stop-color="#bed5dc"/></radialGradient></defs>
+    <g fill="url(#wool)"><circle cx="120" cy="220" r="105"/><circle cx="220" cy="180" r="120"/><circle cx="330" cy="220" r="100"/><circle cx="270" cy="95" r="80"/></g>
+    <ellipse cx="370" cy="160" rx="72" ry="88" fill="#172735"/>
+    <ellipse cx="306" cy="111" rx="44" ry="19" transform="rotate(20 306 111)" fill="#172735"/>
+    <ellipse cx="430" cy="112" rx="44" ry="19" transform="rotate(-20 430 112)" fill="#172735"/>
+    <circle cx="345" cy="145" r="12" fill="#edf7fa"/><circle cx="397" cy="145" r="12" fill="#edf7fa"/>
+    <circle cx="348" cy="145" r="5" fill="#091522"/><circle cx="400" cy="145" r="5" fill="#091522"/>
+    <ellipse cx="372" cy="197" rx="13" ry="8" fill="#091522"/>
+  </svg>
+</footer>
+
+<script>
+(() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nav = document.querySelector("#nav");
+  addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 18), { passive: true });
+
+  if (!reduced && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (entry.isIntersecting) { entry.target.classList.add("in"); observer.unobserve(entry.target); }
+    }), { threshold: .12 });
+    document.querySelectorAll(".fade").forEach((el) => observer.observe(el));
+  } else {
+    document.querySelectorAll(".fade").forEach((el) => el.classList.add("in"));
+  }
+
+  document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {
+    const command = "ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/cloudsheep";
+    try { await navigator.clipboard.writeText(command); button.textContent = "copied"; }
+    catch { button.textContent = "select"; }
+    setTimeout(() => { button.textContent = "copy"; }, 1600);
+  }));
+
+  const terminal = document.querySelector("#termLines");
+  const source = [...terminal.children].map((line) => ({ text: line.textContent, cls: line.className }));
+  let runId = 0;
+  async function play() {
+    if (reduced) return;
+    const id = ++runId;
+    terminal.replaceChildren();
+    for (let i = 0; i < source.length; i++) {
+      if (id !== runId) return;
+      const line = document.createElement("div");
+      line.className = source[i].cls;
+      line.textContent = source[i].text;
+      terminal.append(line);
+      let wait = 105;
+      if (source[i].cls.includes("cmd")) wait = 620;
+      else if (source[i].text === "") wait = 60;
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+  document.querySelector("#replay").addEventListener("click", play);
+  if (!reduced && "IntersectionObserver" in window) {
+    const termObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) { play(); termObserver.disconnect(); }
+    }, { threshold: .35 });
+    termObserver.observe(document.querySelector(".term-wrap"));
+  }
+})();
+</script>
+</body>
+</html>
