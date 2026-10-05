@@ -52,6 +52,9 @@ Templates (the `command` provider and the ssh lifecycle hooks) fill `{name}`, an
 - **jobs** run detached under `~/.cloudsheep/jobs/<id>` on the machine (`setsid`/`nohup`), so they
   survive disconnects. `logs --follow` polls until the job ends. `cancel` signals its process group.
 - Remote commands run through `sh -c`, so a fish or csh login shell is fine.
+- `proxy_command` fills in placeholders from the machine's settings, like `up` and `down` do
+  (`--zone={zone}`); ssh's own `%h` and `%p` pass through. `examples/machines.toml` has a GCE VM reached
+  over an IAP tunnel this way.
 
 ### gcp-worker
 

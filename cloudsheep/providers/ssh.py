@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from .. import gitsync
-from ..core import CloudsheepError, Machine, remote_path, run
+from ..core import CloudsheepError, Machine, remote_path, render, run
 from .hooks import HookMixin
 
 JOB = re.compile(r'[a-z0-9][a-z0-9-]{0,47}')
@@ -52,11 +52,16 @@ class SshMachine(HookMixin, Machine):
         if self.settings.get('proxy_jump'):
             argv += ['-J', self.settings['proxy_jump']]
         if self.settings.get('proxy_command'):
-            argv += ['-o', 'ProxyCommand=' + self.settings['proxy_command']]
+            argv += ['-o', 'ProxyCommand=' + self.proxy_command()]
         argv += ['-o', 'ForwardAgent=' + ('yes' if self.settings.get('forward_agent') else 'no')]
         for option in self.settings.get('options', []):
             argv += ['-o', option]
         return argv
+
+    def proxy_command(self) -> str:
+        # Placeholders like {zone} come from the machine's settings, as in up/down templates;
+        # ssh's own %h/%p tokens pass through.
+        return render(self.settings['proxy_command'], self.hook_values())
 
     def ssh(self, command: str, tty: bool = False, batch: bool = False) -> list[str]:
         flags = ['-t'] if tty else ['-T']
@@ -168,6 +173,6 @@ class SshMachine(HookMixin, Machine):
         for key, option in (('user', 'User'), ('port', 'Port'), ('identity_file', 'IdentityFile'),
                             ('proxy_jump', 'ProxyJump'), ('proxy_command', 'ProxyCommand')):
             if self.settings.get(key):
-                entry[option] = str(self.settings[key])
+                entry[option] = self.proxy_command() if key == 'proxy_command' else str(self.settings[key])
         entry['ForwardAgent'] = 'yes' if self.settings.get('forward_agent') else 'no'
         return {'host': self.settings.get('alias', self.name), 'options': entry}

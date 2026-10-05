@@ -37,6 +37,18 @@
 # up = "multipass start {instance}"
 # down = "multipass stop {instance}"
 
+# --- any GCE VM over an IAP tunnel, created and deleted by your own commands -----
+# [machines.gpu]
+# provider = "ssh"
+# host = "my-gpu-vm"                       # instance name
+# zone = "us-central1-a"
+# user = "you_example_com"                 # OS Login user
+# identity_file = "~/.ssh/google_compute_engine"
+# proxy_command = "gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --project=my-project --zone={zone} --verbosity=warning"
+# options = ["UserKnownHostsFile=~/.ssh/cloudsheep_known_hosts", "StrictHostKeyChecking=accept-new"]
+# up = "gcloud compute instances create {host} --project=my-project --zone={zone} ..."
+# down = "gcloud compute instances delete {host} --project=my-project --zone={zone} --quiet"
+
 # --- bundle's disposable GCP workers (scripts/gcp-worker/agent.py) -----------
 # With this table, every unreleased lease shows up as a machine named after its task.
 # [providers.gcp-worker]

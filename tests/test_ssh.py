@@ -189,5 +189,14 @@ class SshProviderTest(Sandbox):
         self.assertEqual(entry['options']['ForwardAgent'], 'no')
 
 
+    def test_proxy_command_placeholders(self):
+        self.config('[machines.g]\nprovider = "ssh"\nhost = "vm-1"\nzone = "us-central1-c"\n'
+                    'proxy_command = "gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --zone={zone}"\n')
+        machine = config.machine('g')
+        argv = machine.ssh_base()
+        self.assertIn('ProxyCommand=gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --zone=us-central1-c', argv)
+        self.assertEqual(machine.ssh_config()['options']['ProxyCommand'],
+                         'gcloud compute start-iap-tunnel %h 22 --listen-on-stdin --zone=us-central1-c')
+
 if __name__ == '__main__':
     unittest.main()
