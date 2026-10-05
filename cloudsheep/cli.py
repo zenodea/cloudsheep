@@ -98,7 +98,8 @@ def cmd_ls(args):
     found = config.machines()
     rows = []
     for name, machine in sorted(found.items()):
-        row = {'name': name, 'provider': machine.provider, 'description': machine.describe()}
+        row = {'name': name, 'provider': machine.provider, 'description': machine.describe(),
+               'capabilities': sorted(machine.capabilities()), 'ports': machine.port_presets()}
         if args.status and 'status' in machine.capabilities():
             try:
                 status = machine.status()
@@ -229,6 +230,10 @@ def cmd_logs(args):
     machine = config.machine(args.name)
     machine.require('jobs')
     offset = args.offset
+    if args.json:
+        chunk = machine.job_logs(args.job, args.stream, offset, args.limit)
+        print(json.dumps({'machine': machine.name, 'job': args.job, 'stream': args.stream, 'offset': offset, **chunk}))
+        return
     while True:
         chunk = machine.job_logs(args.job, args.stream, offset)
         if chunk['text']:
@@ -439,8 +444,9 @@ def parser():
     c.add_argument('--job', help='job id (lowercase, digits, hyphens)')
     c.add_argument('command', nargs='*', help='command, after --')
     add('jobs', cmd_jobs, 'list jobs')
-    c = add('logs', cmd_logs, 'print job output', json_flag=False)
+    c = add('logs', cmd_logs, 'print job output (--json: one chunk with next_offset)')
     c.add_argument('job')
+    c.add_argument('--limit', type=int, default=65536, help='max bytes per chunk (--json)')
     c.add_argument('--stream', choices=['stdout', 'stderr'], default='stdout')
     c.add_argument('--offset', type=int, default=0)
     c.add_argument('-f', '--follow', action='store_true', help='keep printing until the job ends')

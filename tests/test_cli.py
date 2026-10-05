@@ -47,6 +47,21 @@ shell = "limactl shell default"
         _, out, _ = call('caps', 'box', '--ports')
         self.assertIn('port:app:3000', out.split())
 
+    def test_ls_json_carries_capabilities_and_ports(self):
+        _, out, _ = call('ls', '--json')
+        rows = {row['name']: row for row in json.loads(out)}
+        self.assertEqual(rows['lima']['capabilities'], ['shell', 'status'])
+        self.assertEqual(rows['box']['ports'], {'app': 3000})
+
+    def test_logs_json_chunk(self):
+        jobs = self.remote_home / '.cloudsheep' / 'jobs' / 'b1'
+        jobs.mkdir(parents=True)
+        (jobs / 'stdout').write_text('hello world')
+        code, out, err = call('logs', 'box', 'b1', '--json', '--offset', '6', '--limit', '3')
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out), {'machine': 'box', 'job': 'b1', 'stream': 'stdout', 'offset': 6,
+                                           'text': 'wor', 'next_offset': 9})
+
     def test_unsupported_and_unknown_are_clean_errors(self):
         code, _, err = call('sync', 'lima')
         self.assertEqual(code, 1)

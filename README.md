@@ -85,6 +85,22 @@ agent.py's `--dry-run` and shows the plan, including whether creation is billabl
 `cloudsheep open NAME [--split right|down] [-- ACTION ARGS]` is the building block for your own
 bindings. It opens a herdr tab or split and runs `cloudsheep ACTION NAME ARGS` in it.
 
+## Using cloudsheep from other tools
+
+Every data command takes `--json`. Errors are `{"ok": false, "error": "..."}` with exit code 1.
+
+| command | JSON |
+|---|---|
+| `ls --json [--status]` | `[{name, provider, description, capabilities[], ports{}, state?, expires_at?}]` (no network without `--status`) |
+| `status NAME --json` | `{machine, state, expires_at?, hard_deadline?, jobs: [{job, state, exit_code}], ...}` (provider-specific extras) |
+| `jobs NAME --json` | `[{job, state, exit_code}]` |
+| `logs NAME JOB --json [--stream] [--offset] [--limit]` | `{text, next_offset, ...}`: poll with the returned offset |
+| `up/down/extend NAME --json` | the plan (`applied: false`); with `--yes`, the result |
+| `job/cancel/sync/collect NAME --json` | the provider's result |
+| `open NAME [-- ACTION]` | `{pane_id, command}` of the herdr pane it created |
+
+Job states are `submitted`, `running`, `completed`, `cancelled`, `interrupted` or `unknown`.
+
 ## Tests
 
 ```sh

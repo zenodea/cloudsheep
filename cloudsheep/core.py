@@ -157,7 +157,7 @@ class Machine:
     def job_cancel(self, job: str) -> dict:
         raise Unsupported('jobs')
 
-    def job_logs(self, job: str, stream: str, offset: int) -> dict:
+    def job_logs(self, job: str, stream: str, offset: int, limit: int = 65536) -> dict:
         """Return {'text', 'next_offset'}."""
         raise Unsupported('jobs')
 
