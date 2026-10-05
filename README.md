@@ -71,6 +71,20 @@ agent.py's `--dry-run` and shows the plan, including whether creation is billabl
 - `ssh-config` emits an IAP `ProxyCommand` block (`cs-<task>`), so plain `ssh`, `rsync` and
   `herdr --remote` can reach the VM. It needs `ssh_user` (your OS Login username) in the provider table.
 - `native NAME -- run-agent --job ... --agent codex ...` passes any other agent.py command through.
+- `zone = "us-central1-a"` (on the machine or the provider table) sets the zone for new leases, e.g.
+  when a zone has no GPU capacity. It must stay in the region of the config's subnet. Once a lease
+  exists, cloudsheep always passes the lease's own config, as agent.py requires.
+
+When acquire doesn't finish, the worker gets one of two states:
+
+- **pending**: the reservation was saved but no VM was created (agent.py hides the cause, usually GPU
+  capacity). `up --yes` retries. `down --yes` drops the reservation after gcloud confirms no VM exists.
+- **starting**: the VM exists and its startup script is still running. `up --yes` resumes and waits up
+  to 20 minutes, but stops at once if the VM's `bundle-worker` service has failed. `down --yes`
+  deletes the VM with the kit's `worker.py delete` (an adopted VM is kept) and drops the lease.
+  Nothing was synced, so nothing is collected.
+
+Dropped leases are kept as `lease-<task>.json.abandoned-<time>` in agent.py's state directory.
 
 ## herdr
 
