@@ -2,12 +2,13 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import unittest
 from datetime import datetime, timedelta, timezone
 
 from cloudsheep import cli
 from cloudsheep.core import CloudsheepError
-from helpers import FAKES, Sandbox
+from helpers import FAKES, ROOT, Sandbox
 
 
 def call(*argv):
@@ -141,3 +142,14 @@ shell = "limactl shell default"
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class HerdrScriptsTest(unittest.TestCase):
+    def test_scripts_are_executable(self):
+        # herdr runs them directly: without the executable bit the popup just flashes and closes.
+        for script in (ROOT / 'herdr').glob('*.sh'):
+            self.assertTrue(os.access(script, os.X_OK), f'{script.name} is not executable')
+            mode = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '-s', str(script)],
+                                  capture_output=True, text=True).stdout.split()[:1]
+            self.assertEqual(mode, ['100755'], f'{script.name} is not executable in git')
+

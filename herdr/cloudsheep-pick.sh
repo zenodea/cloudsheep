@@ -20,7 +20,7 @@ if [[ -z $machine ]]; then
   list="$("$cs" ls --plain)" || fail "could not list machines"
   [[ -n $list ]] || fail "no machines yet: run '$cs init' and edit ~/.config/cloudsheep/machines.toml"
   machine="$(awk -F'\t' '{printf "%s\t%-10s\t%s\n", $1, $2, $4}' <<<"$list" |
-    fzf "${fzf_opts[@]}" --prompt='🐑 machine › ' | cut -f1)"
+    fzf "${fzf_opts[@]}" --select-1 --prompt='🐑 machine › ' | cut -f1)"
   [[ -n $machine ]] || exit 0
 fi
 
