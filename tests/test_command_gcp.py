@@ -183,6 +183,24 @@ class GcpWorkerTest(Sandbox):
             gcp_worker.STARTUP_POLL = saved
         self.assertEqual(len(self.calls()), 1)
 
+    def test_down_abandons_a_worker_whose_acquire_never_finished(self):
+        (self.kit / 'worker.py').write_text("import json, os, sys\nopen(os.environ['FAKE_AGENT_LOG'], 'a').write(json.dumps(['worker.py', *sys.argv[1:]]) + '\\n')\n")
+        self.lease('heavy', helper_installed=False)
+        self.config(self.provider)
+        heavy = config.machine('heavy')
+        self.assertFalse(heavy.down_wants_repo(False))
+        plan = heavy.down(apply=False)
+        self.assertIn('DELETES VM bundle-agent-0123', plan['effect'])
+        self.assertFalse(self.agent_log.exists())
+        os.environ['FAKE_GCLOUD_INSTANCES'] = 'bundle-agent-0123'
+        heavy.down(apply=True)
+        self.assertEqual(self.calls(), [['worker.py', 'delete', '--name', 'bundle-agent-0123']])
+        self.assertEqual(list(config.machines()), [])
+        self.lease('kept', helper_installed=False, adopted=True)
+        kept = config.machine('kept')
+        self.assertIn('keeps adopted VM', kept.down(apply=True)['effect'])
+        self.assertEqual(len(self.calls()), 1)              # adopted VMs are never deleted
+
     def test_failed_acquire_explains_the_pending_lease(self):
         self.lease('heavy', instance_id=None)
         os.environ['FAKE_AGENT_REFUSE'] = '1'

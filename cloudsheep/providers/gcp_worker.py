@@ -273,8 +273,8 @@ class GcpWorkerMachine(Machine):
     def down_wants_repo(self, explicit):
         # Created workers must be collected before deletion; adopted ones only when asked.
         lease = self.lease()
-        if self.pending(lease):
-            return False
+        if self.pending(lease) or self.starting(lease):
+            return False   # acquire never finished, so nothing was synced and there is nothing to collect
         return explicit or bool(lease and not lease.get('released') and not lease.get('adopted'))
 
     def startup_failed(self) -> bool:
@@ -304,17 +304,44 @@ class GcpWorkerMachine(Machine):
                 'would_run': f'mv {path} {path.name}.abandoned-<time>'}
         if not apply:
             return plan
+        self.forget_lease(self.pending)
+        return plan
+
+    def abandon_starting(self, apply):
+        """Undo an acquire that bound a VM but never finished (startup failed): agent.py release
+        needs the helper that was never installed. Nothing was synced, so nothing is collected."""
+        lease = self.lease()
+        path = self.lease_path()
+        delete = [self.provider_settings.get('python', 'python3'), '-B', str(self.kit() / 'worker.py'), 'delete',
+                  '--config', str(self.agent_config()), '--name', lease['name']]
+        if lease.get('adopted'):
+            effect = f"acquire never finished; forgets the lease and keeps adopted VM {lease['name']}"
+            would_run = f'mv {path} {path.name}.abandoned-<time>'
+        else:
+            effect = f"acquire never finished, nothing was synced; DELETES VM {lease['name']} and forgets the lease"
+            would_run = shlex.join(delete)
+        plan = {'machine': self.name, 'action': 'down', 'applied': apply, 'effect': effect, 'would_run': would_run}
+        if not apply:
+            return plan
+        if not lease.get('adopted') and self.vm_exists(lease):
+            run(delete, timeout=900)
+        self.forget_lease(lambda current: self.starting(current) and current.get('instance_id') == lease.get('instance_id'))
+        return plan
+
+    def forget_lease(self, still_valid):
+        path = self.lease_path()
         with (path.parent / 'fleet.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
-            if not self.pending(self.lease()):
+            if not still_valid(self.lease()):
                 raise CloudsheepError(f'{self.name}: the lease changed meanwhile; check `cloudsheep status {self.name}`')
             stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
             path.rename(path.with_name(f'{path.name}.abandoned-{stamp}'))
-        return plan
 
     def down(self, apply, repo=None, branch=None):
         if self.pending(self.lease()):
             return self.forget_pending(apply)
+        if self.starting(self.lease()):
+            return self.abandon_starting(apply)
         lease = self.bound_lease()
         args = []
         if repo is not None:
