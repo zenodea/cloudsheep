@@ -18,7 +18,7 @@ import re
 import shlex
 from pathlib import Path
 
-from ..core import CloudsheepError, Machine, run, run_json
+from ..core import CloudsheepError, Machine, run_json
 
 TASK = re.compile(r'[a-z0-9][a-z0-9-]{0,47}')
 REMOTE_ROOT = '/home/agent/.local/share/bundle-worker-agent/tasks'
@@ -26,6 +26,7 @@ LEASE_STATE = '~/.local/state/bundle-worker-agent'
 
 
 def lease_dir(provider_settings: dict) -> Path:
+    # agent.py always uses LEASE_STATE; `state_dir` exists for tests and must otherwise stay unset.
     return Path(provider_settings.get('state_dir', LEASE_STATE)).expanduser()
 
 
@@ -228,8 +229,8 @@ class GcpWorkerMachine(Machine):
         config = lease['config']
         user = self.settings.get('ssh_user') or self.provider_settings.get('ssh_user')
         if not user:
-            user = run(['gcloud', 'compute', 'os-login', 'describe-profile',
-                        '--format=value(posixAccounts[0].username)'], timeout=60).stdout.strip()
+            raise CloudsheepError('set ssh_user in [providers.gcp-worker]; find it with: gcloud compute '
+                                  "os-login describe-profile --format='value(posixAccounts[0].username)'")
         options = {
             'HostName': lease['name'],
             'User': user,

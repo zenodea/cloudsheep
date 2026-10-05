@@ -48,6 +48,11 @@ run = "limactl shell {instance} -- {cmd}"
         with self.assertRaises(Unsupported):
             lima.require('sync')
 
+    def test_run_template_must_use_cmd(self):
+        self.config('[machines.x]\nprovider = "command"\nrun = "limactl shell default"\n')
+        with self.assertRaisesRegex(CloudsheepError, '{cmd}'):
+            config.machine('x').run_argv(['ls'])
+
     def test_braces_that_are_not_placeholders_pass_through(self):
         self.config('[machines.x]\nprovider = "command"\nshell = "awk \'{print}\' {nope} {name}"\n')
         self.assertEqual(config.machine('x').shell_argv(), ['sh', '-c', "awk '{print}' {nope} x"])
@@ -196,6 +201,12 @@ class GcpWorkerTest(Sandbox):
         self.assertIn('start-iap-tunnel %h 22 --listen-on-stdin --project=proj --zone=us-central1-b',
                       entry['options']['ProxyCommand'])
         self.assertEqual(entry['options']['HostKeyAlias'], 'compute.42')
+
+    def test_ssh_config_needs_ssh_user_without_calling_gcloud(self):
+        self.lease('heavy')
+        self.config(self.provider.replace('ssh_user = "me_example_com"\n', ''))
+        with self.assertRaisesRegex(CloudsheepError, 'ssh_user'):
+            config.machine('heavy').ssh_config()
 
     def test_jobs_and_logs(self):
         self.lease('heavy')

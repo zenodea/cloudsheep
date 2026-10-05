@@ -42,7 +42,7 @@
 # [providers.gcp-worker]
 # kit = "~/Work/bundle/scripts/gcp-worker"
 # repo = "~/Work/bundle"            # default for sync/collect/down
-# # ssh_user = "you_example_com"    # OS Login user for ssh-config (looked up if unset)
+# ssh_user = "you_example_com"      # OS Login user, needed by ssh-config
 #
 # To acquire one, describe it (then `cloudsheep up heavy`, `--yes` to apply):
 # [machines.heavy]

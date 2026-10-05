@@ -62,7 +62,8 @@ class SshMachine(HookMixin, Machine):
         flags = ['-t'] if tty else ['-T']
         if batch:
             flags += ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10']
-        return [*self.ssh_base(), *flags, self.target(), command]
+        # Run through sh so scripts work whatever the remote login shell is (fish, csh, ...).
+        return [*self.ssh_base(), *flags, self.target(), 'sh -c ' + shlex.quote(command)]
 
     def in_workdir(self, command: str) -> str:
         return f'cd {remote_path(self.workdir)} && {command}'
@@ -83,8 +84,9 @@ class SshMachine(HookMixin, Machine):
     def shell_argv(self, as_self=False):
         if as_self:
             return [*self.ssh_base(), '-t', self.target()]
-        return self.ssh(f'cd {remote_path(self.workdir)} 2>/dev/null || echo "cloudsheep: {self.workdir} '
-                        f'does not exist yet (sync first)"; exec "${{SHELL:-sh}}" -l', tty=True)
+        missing = shlex.quote(f'cloudsheep: {self.workdir} does not exist yet (sync first)')
+        return self.ssh(f'cd {remote_path(self.workdir)} 2>/dev/null || echo {missing}; '
+                        f'exec "${{SHELL:-sh}}" -l', tty=True)
 
     def run_argv(self, command, tty=False):
         return self.ssh(self.in_workdir(shlex.join(command)), tty=tty)
@@ -145,8 +147,12 @@ class SshMachine(HookMixin, Machine):
     def job_logs(self, job, stream, offset, limit=65536):
         if stream not in ('stdout', 'stderr'):
             raise CloudsheepError('stream must be stdout or stderr')
-        command = f'tail -c +{int(offset) + 1} {job_dir(job)}/{stream} 2>/dev/null | head -c {int(limit)}'
+        folder = job_dir(job)
+        command = (f'[ -d {folder} ] || exit 4; '
+                   f'tail -c +{int(offset) + 1} {folder}/{stream} 2>/dev/null | head -c {int(limit)}')
         result = subprocess.run(self.ssh(command, batch=True), capture_output=True)
+        if result.returncode == 4:
+            raise CloudsheepError(f'no job {job} on {self.name}')
         if result.returncode:
             raise CloudsheepError(f'could not read logs for {job}')
         return {'text': result.stdout.decode('utf-8', 'replace'), 'next_offset': offset + len(result.stdout)}

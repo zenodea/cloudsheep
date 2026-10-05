@@ -11,7 +11,7 @@ cloudsheep job box --job build -- make -j16
 cloudsheep logs box build --follow
 cloudsheep collect box                 # bring changes back as a new local branch
 cloudsheep tunnel box 3000             # or 9000:3000, or a preset like `app` / `novnc`
-cloudsheep up box / down box           # prints the plan; add --yes to apply
+cloudsheep up box / down box           # prints the plan; add --yes to apply (extend too)
 cloudsheep watch                       # herdr notifications: job done, lease expiring
 ```
 
@@ -51,6 +51,7 @@ Templates (the `command` provider and the ssh lifecycle hooks) fill `{name}`, an
   working tree are untouched. Files ignored by the root `.gitignore` are not transferred back.
 - **jobs** run detached under `~/.cloudsheep/jobs/<id>` on the machine (`setsid`/`nohup`), so they
   survive disconnects. `logs --follow` polls until the job ends. `cancel` signals its process group.
+- Remote commands run through `sh -c`, so a fish or csh login shell is fine.
 
 ### gcp-worker
 
@@ -65,9 +66,10 @@ agent.py's `--dry-run` and shows the plan, including whether creation is billabl
   shell before `collect` or `down`.
 - `tunnel novnc` forwards the worker desktop (`http://127.0.0.1:6080/vnc.html`).
 - `down` on a created worker collects and then **deletes** the VM (it needs a repo). On an adopted
-  worker it only gives up the lease.
+  worker it only gives up the lease, and it collects first only when you pass `--repo`.
+- `extend` shows the new lease and the hard cap it can't pass. Add `--yes` to renew.
 - `ssh-config` emits an IAP `ProxyCommand` block (`cs-<task>`), so plain `ssh`, `rsync` and
-  `herdr --remote` can reach the VM.
+  `herdr --remote` can reach the VM. It needs `ssh_user` (your OS Login username) in the provider table.
 - `native NAME -- run-agent --job ... --agent codex ...` passes any other agent.py command through.
 
 ## herdr

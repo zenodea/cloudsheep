@@ -49,6 +49,8 @@ class CommandMachine(HookMixin, Machine):
         return self.sh('shell')
 
     def run_argv(self, command, tty=False):
+        if '{cmd}' not in self.settings.get('run', ''):
+            raise CloudsheepError(f'{self.name}: the run template must contain {{cmd}}')
         return self.sh('run', cmd=shlex.join(command))
 
     def tunnel_argv(self, local, remote, remote_host='127.0.0.1'):

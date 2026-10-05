@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import time
 import unittest
@@ -45,7 +46,7 @@ class SshProviderTest(Sandbox):
         argv = self.box.run_argv(['echo', 'a b'])
         self.assertEqual(argv[:3], ['ssh', '-p', '2222'])
         self.assertIn('dev@box.example', argv)
-        self.assertEqual(argv[-1], "cd ~/src/proj && echo 'a b'")
+        self.assertEqual(argv[-1], 'sh -c ' + shlex.quote("cd ~/src/proj && echo 'a b'"))
         tunnel = self.box.tunnel_argv(8080, 3000)
         self.assertIn('127.0.0.1:8080:127.0.0.1:3000', tunnel)
         self.assertIn('-N', tunnel)
@@ -167,6 +168,15 @@ class SshProviderTest(Sandbox):
         status = self.wait('slow')
         self.assertIn(status['state'], {'completed', 'interrupted'})
         self.assertNotEqual(status['exit_code'], 0)
+
+    def test_logs_for_missing_job(self):
+        with self.assertRaisesRegex(CloudsheepError, 'no job ghost'):
+            self.box.job_logs('ghost', 'stdout', 0)
+
+    def test_scripts_survive_a_non_posix_login_shell(self):
+        # The fake ssh runs the remote command with /bin/sh; csh-style syntax would fail if unwrapped.
+        self.assertTrue(self.box.run_argv(['true'])[-1].startswith('sh -c '))
+        self.assertTrue(self.box.shell_argv()[-1].startswith('sh -c '))
 
     def test_invalid_job_id(self):
         with self.assertRaises(CloudsheepError):
