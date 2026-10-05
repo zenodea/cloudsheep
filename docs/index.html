@@ -3,31 +3,39 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cloudsheep — herd your VMs</title>
-<meta name="description" content="Herd your VMs from the terminal and from herdr: shells, tunnels, source sync, detached jobs, lifecycle plans, and notifications.">
-<meta name="theme-color" content="#091522">
+<title>cloudsheep</title>
+<meta name="description" content="Herd your VMs from the terminal and from herdr: shells, tunnels, sync, detached jobs and lifecycle, on anything you can reach.">
+<meta name="theme-color" content="#0B1422">
 <meta property="og:title" content="cloudsheep">
-<meta property="og:description" content="Herd your VMs from the terminal and from herdr.">
+<meta property="og:description" content="Shells, tunnels, sync and detached jobs on any VM, from your terminal and from herdr.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230E1A2B'/%3E%3Cg fill='%23EAF0F8'%3E%3Ccircle cx='24' cy='34' r='11'/%3E%3Ccircle cx='34' cy='28' r='12'/%3E%3Ccircle cx='42' cy='36' r='9'/%3E%3Ccircle cx='31' cy='39' r='9'/%3E%3C/g%3E%3Cellipse cx='50' cy='33' rx='6' ry='5' fill='%232B2A34'/%3E%3Cpath d='M26 47v6M38 47v6' stroke='%232B2A34' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --night: #091522;
-  --night-2: #0d1d2d;
-  --night-3: #12263a;
-  --panel: #0a111b;
-  --line: rgba(164, 204, 225, .15);
-  --line-hi: rgba(164, 204, 225, .3);
-  --ink: #edf7fa;
-  --muted: #9bb2c1;
-  --subtle: #708a9b;
-  --sky: #72d4f7;
-  --sky-hi: #bceeff;
-  --mint: #82e6c2;
-  --amber: #f5b544;
-  --green: #65d69a;
-  --red: #fb8b8b;
+  --night: #0B1422;
+  --night-2: #0E1A2B;
+  --night-3: #132338;
+  --line: rgba(160, 185, 220, .14);
+  --ink: #EAF0F8;
+  --muted: #93A3BA;
+  --subtle: #5D6E87;
+  --sky: #7CCBF5;
+  --sky-hi: #B8E4FF;
+  --amber: #F5B544;
+  --amber-hi: #FFD27A;
+  --done: #22C55E;
+  --working: #60A5FA;
+  --red: #F87171;
+  --cyan: #22D3EE;
+  --p-bg: #0A0A0A;
+  --p-surface: #141414;
+  --p-raised: #1C1C1C;
+  --p-border: #262626;
+  --p-text: #FAFAFA;
+  --p-muted: #A3A3A3;
+  --p-subtle: #6B6B6B;
   --sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --ease: cubic-bezier(.2, .8, .2, 1);
@@ -35,493 +43,491 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--night); color: var(--ink); font-family: var(--sans);
-  font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: clip;
-}
+body { margin: 0; background: var(--night); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: clip; }
 a { color: inherit; }
-button, a { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 3px solid var(--sky); outline-offset: 4px; }
-::selection { background: var(--sky); color: #05202c; }
-code, pre, .mono { font-family: var(--mono); }
-.wrap { width: min(1160px, calc(100% - 32px)); margin-inline: auto; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.skip { position: fixed; top: 8px; left: 8px; z-index: 100; padding: 9px 14px; border-radius: 8px; background: var(--sky); color: #05202c; transform: translateY(-160%); }
-.skip:focus { transform: none; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--sky); outline-offset: 3px; border-radius: 8px; }
+::selection { background: var(--sky); color: #04131d; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+.wrap { width: min(1160px, 100% - 32px); margin-inline: auto; }
+.skip { position: absolute; left: 16px; top: -60px; z-index: 99; background: var(--ink); color: var(--night); padding: 8px 14px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+.skip:focus { top: 12px; }
 
-/* navigation */
-.nav { position: fixed; inset: 0 0 auto; z-index: 50; border-bottom: 1px solid transparent; transition: background .3s, border-color .3s, backdrop-filter .3s; }
-.nav.scrolled { background: rgba(9,21,34,.78); border-color: var(--line); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); }
-.nav .wrap { height: 66px; display: flex; align-items: center; justify-content: space-between; }
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
-.brand-mark { position: relative; width: 32px; height: 25px; }
-.brand-mark i { position: absolute; display: block; background: var(--ink); border-radius: 50%; }
-.brand-mark i:nth-child(1) { width: 20px; height: 17px; left: 2px; top: 6px; }
-.brand-mark i:nth-child(2) { width: 14px; height: 14px; left: 11px; top: 2px; }
-.brand-mark i:nth-child(3) { width: 12px; height: 12px; left: 20px; top: 9px; }
-.brand-mark::after { content: ""; position: absolute; width: 8px; height: 11px; right: 0; bottom: 0; border-radius: 45% 45% 55% 55%; background: #172635; }
-.nav nav { display: flex; align-items: center; gap: 5px; }
-.nav nav a { padding: 8px 12px; color: var(--muted); font-size: 15px; text-decoration: none; border-radius: 999px; transition: color .2s, background .2s; }
+/* ---------- nav ---------- */
+.nav { position: fixed; inset: 0 0 auto; z-index: 50; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
+.nav.scrolled { background: rgba(11, 20, 34, .72); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); border-color: var(--line); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+.brand svg { width: 30px; height: 30px; }
+.nav nav { display: flex; gap: 6px; align-items: center; }
+.nav nav a { text-decoration: none; color: var(--muted); font-size: 15px; padding: 8px 12px; border-radius: 999px; transition: color .2s, background .2s; }
 .nav nav a:hover { color: var(--ink); background: rgba(255,255,255,.05); }
-.nav .gh { color: var(--ink); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 8px; }
-.nav .gh svg { width: 16px; height: 16px; }
+.nav nav a.gh { color: var(--ink); border: 1px solid var(--line); display: inline-flex; gap: 8px; align-items: center; }
+.nav nav a.gh svg { width: 16px; height: 16px; }
+@media (max-width: 640px) { .nav nav a:not(.gh) { display: none; } }
 
-/* reusable */
-section.block { padding: clamp(82px, 11vw, 142px) 0; position: relative; }
-.kicker { margin: 0 0 18px; color: var(--sky); font: 500 13px/1.4 var(--mono); }
-h1, h2, h3 { text-wrap: balance; }
-h1 { margin: 0; font-size: clamp(48px, 7.4vw, 94px); line-height: .92; letter-spacing: -.045em; font-weight: 800; }
-h2 { margin: 0 0 22px; font-size: clamp(36px, 4.8vw, 62px); line-height: 1; letter-spacing: -.035em; font-weight: 800; }
-h2 .dim { color: var(--subtle); }
-.lede { max-width: 36em; margin: 27px 0 32px; color: var(--muted); font-size: clamp(18px, 2vw, 21px); }
-.lede strong, .body strong { color: var(--ink); font-weight: 600; }
-.body { max-width: 35em; color: var(--muted); font-size: 18px; }
-.body p { margin: 0 0 16px; }
-.split { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: clamp(40px, 7vw, 94px); align-items: center; }
-.split > * { min-width: 0; }
-.btns { display: flex; gap: 12px; flex-wrap: wrap; }
-.btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 21px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; font-size: 16px; font-weight: 650; transition: transform .2s var(--ease), background .2s, border-color .2s; }
-.btn:hover { transform: translateY(-2px); border-color: var(--line-hi); }
-.btn.primary { color: #06202b; background: var(--sky); border-color: transparent; box-shadow: 0 16px 42px -18px rgba(114,212,247,.85); }
+/* ---------- hero ---------- */
+.hero { position: relative; min-height: 100svh; display: flex; align-items: center; overflow: hidden; padding: 96px 0 64px; }
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(11,20,34,.92) 0%, rgba(11,20,34,.6) 48%, rgba(11,20,34,0) 72%), linear-gradient(0deg, var(--night) 0%, rgba(11,20,34,0) 10%); }
+.hero .wrap { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 40px; align-items: center; pointer-events: none; }
+.hero .wrap > * { pointer-events: auto; min-width: 0; }
+.eyebrow { font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: .02em; margin: 0 0 22px; display: flex; gap: 10px; align-items: center; }
+.eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sky); animation: ping 1.6s infinite; }
+.eyebrow a { color: var(--ink); text-decoration-color: var(--subtle); text-underline-offset: 3px; }
+h1 { font-size: clamp(42px, 6vw, 82px); line-height: .98; letter-spacing: -.035em; font-weight: 800; margin: 0; min-height: 3em; text-wrap: balance; }
+h1 .who { color: var(--sky); }
+h1 .on { color: var(--ink); }
+h1 .clock { font-family: var(--mono); font-weight: 700; font-size: .82em; letter-spacing: -.04em; color: var(--sky-hi); font-variant-numeric: tabular-nums; display: inline-block; }
+h1 .ok { color: var(--done); }
+h1 .line { display: block; }
+h1 .swap { display: inline-block; transition: opacity .35s var(--ease), transform .45s var(--ease), filter .35s; }
+h1.leaving .swap { opacity: 0; transform: translateY(-.25em); filter: blur(6px); }
+h1.entering .swap { opacity: 0; transform: translateY(.3em); filter: blur(6px); transition: none; }
+.lede { font-size: clamp(17px, 1.6vw, 20px); color: var(--muted); max-width: 33em; margin: 28px 0 32px; }
+.lede strong { color: var(--ink); font-weight: 600; }
+.cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; font-size: 16px; padding: 13px 22px; border-radius: 999px; border: 1px solid var(--line); transition: transform .2s var(--ease), background .2s, border-color .2s; }
+.btn:hover { transform: translateY(-2px); border-color: rgba(160,185,220,.35); }
+.btn.primary { background: var(--sky); color: #04131D; border-color: transparent; box-shadow: 0 10px 40px -10px rgba(124,203,245,.55); }
 .btn.primary:hover { background: var(--sky-hi); }
-.btn svg { width: 17px; height: 17px; }
-.pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font: 12px/1 var(--mono); }
-.pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 14px var(--mint); }
-.fade { opacity: 0; transform: translateY(22px); transition: opacity .75s var(--ease), transform .75s var(--ease); }
+.btn .arrow { transition: transform .2s var(--ease); }
+.btn:hover .arrow { transform: translateX(3px); }
+.works { margin: 28px 0 0; font-size: 14px; color: var(--subtle); display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; }
+.works span { color: var(--ink); font-weight: 500; display: inline-flex; gap: 7px; align-items: center; }
+.works svg { width: 15px; height: 15px; flex: none; color: var(--sky); }
+.works .more { color: var(--subtle); font-weight: 400; }
+.hint { position: absolute; z-index: 2; bottom: 22px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 12px; color: var(--subtle); white-space: nowrap; pointer-events: none; transition: opacity .6s; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(124,203,245,.55); } 80%, 100% { box-shadow: 0 0 0 9px rgba(124,203,245,0); } }
+
+/* ---------- herdr window ---------- */
+.win { position: relative; border-radius: 18px; border: 1px solid var(--line); background: #070D17; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset, 0 50px 100px -30px rgba(0,0,0,.8), 0 30px 60px -40px rgba(124,203,245,.25); font-family: var(--mono); font-size: 11.5px; line-height: 1.55; color: #D5DEEA; }
+.win-bar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); color: var(--subtle); font-size: 11.5px; }
+.win-bar i { width: 10px; height: 10px; border-radius: 50%; background: #1E2A3C; flex: none; }
+.win-tabs { display: flex; gap: 4px; margin-left: 10px; overflow: hidden; }
+.win-tabs span { padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.win-tabs span.on { background: var(--night-3); color: var(--ink); border: 1px solid var(--line); }
+.panes { display: grid; gap: 6px; padding: 6px; }
+.pane { position: relative; border: 1px solid rgba(160,185,220,.1); border-radius: 10px; background: #060B13; overflow: hidden; display: flex; flex-direction: column; }
+.pane.focus { border-color: rgba(124,203,245,.35); }
+.pane-h { flex: none; display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; color: var(--subtle); font-size: 10.5px; border-bottom: 1px solid rgba(160,185,220,.08); }
+.pane-h b { color: var(--muted); font-weight: 500; }
+.lines { flex: 1; padding: 6px 10px 8px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30px); mask-image: linear-gradient(to bottom, transparent 0, #000 30px); }
+.lines .ln { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.55em; animation: lnIn .25s ease-out; flex: none; }
+@keyframes lnIn { from { opacity: 0; transform: translateY(4px); } }
+.c-p { color: var(--sky); } .c-g { color: #4ADE80; } .c-d { color: #6F7F96; } .c-a { color: var(--amber); } .c-r { color: var(--red); } .c-b { color: var(--ink); font-weight: 700; } .c-c { color: var(--cyan); }
+.toast { position: absolute; top: 48px; right: 12px; z-index: 6; width: min(250px, calc(100% - 24px)); background: rgba(22, 34, 52, .92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(124,203,245,.3); border-radius: 12px; padding: 9px 12px; font-family: var(--sans); font-size: 12.5px; color: var(--ink); transform: translateY(-12px) scale(.97); opacity: 0; transition: transform .55s var(--ease), opacity .4s; pointer-events: none; box-shadow: 0 20px 40px -20px rgba(0,0,0,.8); }
+.toast.on { transform: none; opacity: 1; }
+.toast b { display: block; font-weight: 600; }
+.toast span { color: var(--muted); font-size: 12px; }
+.caret { display: inline-block; width: .6em; height: 1.15em; background: var(--sky); vertical-align: text-bottom; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.hero-win .panes { height: 500px; grid-template-rows: 150px 1fr; }
+.hero-slot { display: flex; justify-content: center; }
+.hero-win { width: min(470px, 100%); }
+
+/* ---------- sections ---------- */
+section.block { position: relative; padding: clamp(80px, 12vw, 150px) 0; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 90px); align-items: center; }
+.kicker { font-family: var(--mono); font-size: 13px; color: var(--sky); margin: 0 0 18px; }
+h2 { font-size: clamp(34px, 4.6vw, 60px); line-height: 1.02; letter-spacing: -.03em; font-weight: 800; margin: 0 0 22px; text-wrap: balance; }
+.body { color: var(--muted); font-size: 18px; max-width: 32em; }
+.body p { margin: 0 0 16px; }
+.body strong { color: var(--ink); font-weight: 600; }
+.body code { color: var(--ink); }
+.keys { list-style: none; padding: 0; margin: 30px 0 0; display: grid; gap: 14px; }
+.keys li { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: baseline; color: var(--muted); font-size: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.keys li code { color: var(--ink); font-size: 13px; }
+.rv .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.rv .w > span { display: inline-block; transform: translateY(105%); transition: transform .9s var(--ease); transition-delay: calc(var(--i) * 45ms); }
+.rv.in .w > span { transform: none; }
+.fade { opacity: 0; transform: translateY(24px); transition: opacity .9s var(--ease), transform .9s var(--ease); transition-delay: var(--d, 0ms); }
 .fade.in { opacity: 1; transform: none; }
+.session-win .panes { height: 520px; grid-template-rows: 1fr; }
 
-/* hero */
-.hero { min-height: 100svh; display: grid; align-items: center; position: relative; overflow: hidden; padding: 104px 0 72px; }
-.hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(70% 58% at 76% 36%, rgba(72,173,212,.19), transparent 68%), linear-gradient(0deg, var(--night), transparent 25%); }
-.hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.03fr) minmax(0, .97fr); align-items: center; gap: 28px; z-index: 2; }
-.hero h1 span { color: var(--sky); }
-.hero .eyebrow { display: flex; gap: 10px; align-items: center; margin: 0 0 22px; color: var(--muted); font: 13px var(--mono); }
-.hero .eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(130,230,194,.5); animation: ping 2s infinite; }
-.quick { display: inline-flex; max-width: 100%; align-items: center; gap: 11px; margin-top: 26px; border: 1px solid var(--line); background: rgba(5,13,21,.55); border-radius: 12px; padding: 9px 10px 9px 14px; }
-.quick code { color: #cde1e9; font-size: 12px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
-.quick .prompt { color: var(--sky); }
-.quick button { flex: none; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); padding: 5px 8px; font: 11px var(--mono); cursor: pointer; }
-.quick button:hover { color: var(--ink); border-color: var(--line-hi); }
-.sky-scene { position: relative; height: min(620px, 72vh); min-height: 480px; }
-.orbit { position: absolute; left: 50%; top: 50%; width: min(410px, 82vw); aspect-ratio: 1; transform: translate(-46%,-49%); border: 1px solid rgba(114,212,247,.13); border-radius: 50%; }
-.orbit::before, .orbit::after { content: ""; position: absolute; inset: 14%; border: 1px dashed rgba(114,212,247,.11); border-radius: 50%; }
-.orbit::after { inset: 31%; border-style: solid; }
-.vm-core { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; transform: translate(-46%,-49%); border-radius: 38px; border: 1px solid rgba(188,238,255,.28); background: linear-gradient(145deg, rgba(114,212,247,.15), rgba(9,21,34,.7)); box-shadow: 0 30px 90px -22px rgba(58,169,211,.6), inset 0 0 35px rgba(114,212,247,.05); display: grid; place-items: center; }
-.vm-core svg { width: 68px; color: var(--sky-hi); }
-.vm-core::after { content: "VMs"; position: absolute; bottom: 12px; color: var(--subtle); font: 10px var(--mono); letter-spacing: .14em; }
-.cloud-sheep { --s: 1; position: absolute; width: calc(110px * var(--s)); height: calc(61px * var(--s)); animation: float 6s var(--ease) infinite alternate; filter: drop-shadow(0 16px 22px rgba(0,0,0,.28)); }
-.cloud-sheep .wool { position: absolute; left: 5%; bottom: 7%; width: 77%; height: 67%; background: #dff4f8; border-radius: 50%; }
-.cloud-sheep .wool::before, .cloud-sheep .wool::after { content: ""; position: absolute; background: inherit; border-radius: 50%; }
-.cloud-sheep .wool::before { width: 54%; height: 104%; left: 16%; bottom: 19%; }
-.cloud-sheep .wool::after { width: 44%; height: 88%; right: -4%; bottom: 4%; }
-.cloud-sheep .face { position: absolute; right: 4%; bottom: 0; width: 31%; height: 53%; z-index: 2; background: #1b2a37; border-radius: 48% 52% 46% 46%; }
-.cloud-sheep .face::before { content: ""; position: absolute; left: 22%; top: 27%; width: 5px; height: 5px; border-radius: 50%; background: var(--sky-hi); box-shadow: 13px 0 0 var(--sky-hi); }
-.cloud-sheep .legs { position: absolute; bottom: -9%; left: 30%; width: 8%; height: 31%; background: #233745; border-radius: 5px; box-shadow: 35px 2px 0 #233745; }
-.s1 { --s: 1.02; left: 3%; top: 18%; animation-delay: -.8s; }
-.s2 { --s: .68; right: 1%; top: 12%; animation-delay: -3.3s; }
-.s3 { --s: .82; right: 5%; bottom: 13%; animation-delay: -1.9s; }
-.s4 { --s: .54; left: 16%; bottom: 13%; animation-delay: -4.6s; }
-.route { position: absolute; height: 2px; transform-origin: left; background: linear-gradient(90deg, transparent, var(--sky), transparent); opacity: .35; animation: route 3.8s linear infinite; }
-.r1 { width: 42%; left: 12%; top: 31%; transform: rotate(20deg); }
-.r2 { width: 38%; left: 49%; top: 53%; transform: rotate(-30deg); animation-delay: -1.4s; }
-.r3 { width: 34%; left: 22%; top: 67%; transform: rotate(-32deg); animation-delay: -2.6s; }
-@keyframes float { to { transform: translateY(-16px) rotate(1.5deg); } }
-@keyframes ping { 80%,100% { box-shadow: 0 0 0 10px rgba(130,230,194,0); } }
-@keyframes route { 0% { opacity: 0; clip-path: inset(0 100% 0 0); } 25%,70% { opacity: .55; } 100% { opacity: 0; clip-path: inset(0 0 0 100%); } }
+/* ---------- providers ---------- */
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; align-items: end; margin-bottom: 44px; }
+.seg { display: inline-flex; padding: 4px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.02); }
+.seg button { font: inherit; font-size: 14px; color: var(--muted); background: none; border: 0; padding: 9px 16px; border-radius: 999px; cursor: pointer; transition: color .2s, background .25s; white-space: nowrap; }
+.seg button.on { background: var(--ink); color: var(--night); font-weight: 600; }
+.prov { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.box { border: 1px solid var(--line); border-radius: 24px; padding: 26px clamp(18px, 3vw, 32px); background: radial-gradient(120% 140% at 50% 0%, rgba(124,203,245,.06), transparent 60%), rgba(255,255,255,.012); min-width: 0; }
+.box h4 { margin: 0 0 14px; font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--subtle); }
+.cfg { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.75; color: #C9D6E5; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 15em; transition: opacity .25s; }
+.cfg .k { color: var(--muted); } .cfg .s { color: #8EE0B5; } .cfg .h { color: var(--sky-hi); } .cfg .cm { color: var(--subtle); }
+.caps { display: flex; flex-wrap: wrap; gap: 8px; }
+.cap { font-family: var(--mono); font-size: 13px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--subtle); transition: color .35s, border-color .35s, background .35s, box-shadow .35s; }
+.cap.lit { color: var(--ink); border-color: rgba(124,203,245,.5); background: rgba(124,203,245,.08); box-shadow: 0 0 24px -10px rgba(124,203,245,.6); }
+.cap.hook { color: var(--muted); border-style: dashed; border-color: rgba(124,203,245,.35); }
+.cap-cap { margin: 22px 0 0; color: var(--muted); font-size: 16px; min-height: 4.8em; transition: opacity .3s; }
+.cap-cap b { color: var(--ink); font-weight: 600; }
+.legend { margin-top: 14px; font-size: 13px; color: var(--subtle); display: flex; gap: 16px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 10px; border-radius: 999px; border: 1px solid rgba(124,203,245,.5); background: rgba(124,203,245,.1); margin-right: 6px; vertical-align: -1px; }
+.legend i.d { border-style: dashed; background: none; }
 
-/* terminal */
-.terminal-section { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: radial-gradient(80% 80% at 80% 50%, rgba(114,212,247,.06), transparent 65%); }
-.term-wrap { margin-top: 48px; border: 1px solid var(--line); border-radius: 22px; background: #060d15; overflow: hidden; box-shadow: 0 45px 100px -55px #000; }
-.term-bar { min-height: 46px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; padding: 0 15px; color: var(--subtle); font: 12px var(--mono); }
-.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #203044; }
-.term-bar span { margin-left: 7px; }
-.term-bar button { margin-left: auto; color: var(--muted); border: 1px solid var(--line); background: transparent; border-radius: 7px; padding: 5px 9px; font: 11px var(--mono); cursor: pointer; }
-.term-bar button:hover { color: var(--ink); border-color: var(--line-hi); }
-.term-screen { height: 520px; padding: 18px 20px 24px; overflow: hidden; font: 12.5px/1.58 var(--mono); color: #c9dbe5; }
-.term-lines { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
-.tl { flex: none; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.58em; animation: line-in .22s ease-out; }
-.tl.cmd { color: var(--ink); margin-top: 12px; }
-.tl.cmd::before { content: "$ "; color: var(--sky); }
-.tl.ok { color: var(--green); }
-.tl.warn { color: var(--amber); }
-.tl.dim { color: var(--subtle); }
-@keyframes line-in { from { opacity: 0; transform: translateY(4px); } }
-.command-cloud { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 28px; }
-.command-cloud code { border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font-size: 12px; }
+/* ---------- plan shell ---------- */
+.shell { border-radius: 18px; border: 1px solid var(--line); background: #070D17; overflow: hidden; box-shadow: 0 40px 80px -40px rgba(0,0,0,.8); }
+.shell .bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--subtle); }
+.shell .bar i { width: 11px; height: 11px; border-radius: 50%; background: #1E2A3C; }
+.shell .bar span { margin-left: 8px; }
+.shell pre { margin: 0; padding: 18px 20px 22px; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: #D5DEEA; min-height: 440px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.shell .p { color: var(--sky); } .shell .k { color: var(--subtle); } .shell .w { color: var(--amber-hi); } .shell .g { color: #4ADE80; }
 
-/* providers */
-.section-head { display: grid; grid-template-columns: 1fr minmax(280px, 440px); gap: 32px; align-items: end; margin-bottom: 44px; }
-.providers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.provider { display: flex; flex-direction: column; min-height: 410px; border: 1px solid var(--line); border-radius: 22px; padding: 24px; background: linear-gradient(145deg, rgba(255,255,255,.025), transparent 65%); transition: transform .25s var(--ease), border-color .25s; }
-.provider:hover { transform: translateY(-4px); border-color: var(--line-hi); }
-.provider-icon { width: 46px; height: 46px; border: 1px solid var(--line); border-radius: 14px; display: grid; place-items: center; color: var(--sky); background: var(--night-2); }
-.provider-icon svg { width: 24px; height: 24px; }
-.provider h3 { margin: 22px 0 4px; font-size: 23px; letter-spacing: -.02em; }
-.provider > p { color: var(--muted); margin: 0 0 20px; font-size: 15.5px; }
-.provider pre { margin: auto 0 0; border-top: 1px solid var(--line); padding-top: 18px; color: #aec6d4; white-space: pre-wrap; font: 11.4px/1.65 var(--mono); }
-.provider pre .key { color: var(--sky-hi); }
-.provider pre .str { color: var(--mint); }
+/* ---------- herdr picker ---------- */
+.herdr-win .panes { height: 520px; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); grid-template-rows: 1fr; transition: grid-template-rows .5s var(--ease); }
+.herdr-win.logs-open .panes { grid-template-rows: 1fr 1fr; }
+.herdr-win .p-logs { display: none; grid-column: 1 / -1; }
+.herdr-win.logs-open .p-logs { display: flex; animation: lnIn .4s ease-out; }
+.popup { position: absolute; left: 50%; top: 56%; z-index: 5; width: min(420px, 88%); transform: translate(-50%, -50%) scale(.96); opacity: 0; pointer-events: none; transition: opacity .3s, transform .4s var(--ease); background: #0C1626; border: 1px solid rgba(124,203,245,.35); border-radius: 14px; box-shadow: 0 40px 80px -30px #000; overflow: hidden; }
+.popup.on { opacity: 1; transform: translate(-50%, -50%); }
+.popup .q { padding: 10px 14px; border-bottom: 1px solid var(--line); color: #BD93F9; }
+.popup .q span { color: var(--ink); }
+.popup .opts { padding: 6px; }
+.popup .o { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; padding: 6px 9px; border-radius: 8px; color: var(--muted); white-space: nowrap; }
+.popup .o b { color: var(--ink); font-weight: 500; }
+.popup .o span { overflow: hidden; text-overflow: ellipsis; }
+.popup .o.sel { background: rgba(189,147,249,.16); color: var(--ink); }
+.popup .o.sel b { color: #fff; }
+.popup .o.hide { display: none; }
 
-/* safety */
-.safe { background: var(--night-2); border-block: 1px solid var(--line); overflow: hidden; }
-.safe-grid { display: grid; grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: clamp(44px, 7vw, 100px); align-items: start; }
-.plan-card { position: sticky; top: 100px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #07101a; }
-.plan-card .top { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); }
-.plan-card pre { margin: 0; padding: 22px; color: #c9dbe5; font: 12px/1.75 var(--mono); white-space: pre-wrap; }
-.plan-card .c { color: var(--sky); }
-.plan-card .n { color: var(--amber); }
-.guards { display: grid; gap: 0; }
-.guard { display: grid; grid-template-columns: 44px 1fr; gap: 18px; padding: 26px 0; border-top: 1px solid var(--line); }
-.guard:first-child { border-top: 0; padding-top: 0; }
-.guard .num { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--sky); font: 12px var(--mono); }
-.guard h3 { margin: 3px 0 6px; font-size: 21px; }
-.guard p { margin: 0; color: var(--muted); font-size: 16px; }
-.guard em { color: var(--subtle); font-style: normal; }
+/* ---------- phone (Shepherd) ---------- */
+.phone-slot { display: flex; justify-content: center; }
+.phone { --w: 320px; --h: 640px; width: var(--w); height: var(--h); flex: none; border-radius: 46px; padding: 10px; position: relative; background: linear-gradient(160deg, #2A3A52, #121B29 40%, #0B111B); box-shadow: 0 0 0 1px rgba(255,255,255,.07) inset, 0 50px 100px -30px rgba(0,0,0,.8), 0 30px 60px -40px rgba(245,181,68,.25); }
+.phone .screen { width: 100%; height: 100%; border-radius: 37px; overflow: hidden; position: relative; background: var(--p-bg); color: var(--p-text); font-size: 14px; line-height: 1.35; font-family: -apple-system, "Roboto", "Schibsted Grotesk", system-ui, sans-serif; }
+.phone .notch { position: absolute; top: 12px; left: 50%; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: #000; z-index: 5; }
+.statusbar { height: 40px; display: flex; justify-content: space-between; align-items: center; padding: 6px 26px 0; font-size: 12px; font-weight: 600; }
+.statusbar i { display: inline-block; width: 14px; height: 9px; border-radius: 2px; background: currentColor; opacity: .9; }
+.ph-top { padding: 10px 18px 0; }
+.ph-top small { color: var(--p-muted); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+.ph-top small::before { content: "‹"; font-size: 18px; line-height: 1; }
+.ph-top h3 { margin: 10px 0 2px; font-size: 27px; letter-spacing: -.02em; font-weight: 700; }
+.ph-top p { margin: 0; color: var(--p-muted); font-size: 12.5px; }
+.mlist { padding: 14px 16px; display: grid; gap: 10px; }
+.mrow { background: var(--p-surface); border: 1px solid var(--p-border); border-radius: 16px; padding: 12px; transition: opacity .4s; }
+.mrow .hd { display: flex; align-items: center; gap: 11px; }
+.mrow .ic { width: 30px; height: 30px; border-radius: 50%; background: var(--p-raised); display: grid; place-items: center; font-size: 15px; flex: none; }
+.mrow .t { flex: 1; min-width: 0; }
+.mrow .t b { display: block; font-weight: 600; font-size: 14.5px; }
+.mrow .t span { font-size: 12.5px; color: var(--p-muted); }
+.pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: var(--p-raised); color: var(--p-muted); transition: background .3s, color .3s; }
+.pill.run { background: rgba(34,197,94,.14); color: #4ADE80; }
+.pill.gone { background: rgba(248,113,113,.14); color: #FCA5A5; }
+.mrow .acts { display: flex; gap: 6px; margin-top: 10px; }
+.mrow .acts span { font-size: 12px; font-weight: 600; padding: 7px 10px; border-radius: 10px; background: var(--p-raised); transition: transform .15s, background .2s; }
+.mrow .acts span.tap { transform: scale(.94); background: #2a2a2a; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: #161616; border-top: 1px solid var(--p-border); border-radius: 24px 24px 0 0; padding: 10px 18px 22px; transform: translateY(105%); transition: transform .55s var(--ease); }
+.sheet.on { transform: none; }
+.sheet::before { content: ""; display: block; width: 38px; height: 4px; border-radius: 4px; background: #3a3a3a; margin: 0 auto 14px; }
+.sheet h5 { margin: 0 0 6px; font-size: 17px; }
+.sheet .eff { margin: 0 0 10px; font-size: 13px; color: #FCA5A5; font-weight: 600; }
+.sheet code { display: block; font-family: var(--mono); font-size: 10.5px; color: var(--p-muted); background: #0E0E0E; border-radius: 8px; padding: 8px; margin-bottom: 14px; overflow-wrap: anywhere; }
+.sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sheet .btns span { text-align: center; font-weight: 600; font-size: 13.5px; padding: 11px; border-radius: 12px; background: var(--p-raised); transition: transform .15s; }
+.sheet .btns span.d { background: #7F1D1D; color: #FEE2E2; }
+.sheet .btns span.tap { transform: scale(.95); }
+.finger { position: absolute; z-index: 20; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid rgba(255,255,255,.75); box-shadow: 0 6px 18px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: left .9s var(--ease), top .9s var(--ease), opacity .3s, transform .15s; }
+.finger.on { opacity: 1; }
+.finger.tap { transform: scale(.75); }
+.soon { display: inline-flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; color: var(--amber); border: 1px solid rgba(245,181,68,.35); border-radius: 999px; padding: 4px 10px; margin: 0 0 18px; }
+.shep .kicker { color: var(--amber); }
+.shep .btn.primary { background: var(--amber); color: #1F1503; box-shadow: 0 10px 40px -10px rgba(245,181,68,.55); }
+.shep .btn.primary:hover { background: var(--amber-hi); }
 
-/* herdr */
-.herdr-stage { position: relative; min-height: 570px; border: 1px solid var(--line); border-radius: 26px; padding: 16px; background: linear-gradient(145deg, #0c1825, #07101a); box-shadow: 0 50px 100px -70px #000; overflow: hidden; }
-.herdr-tabs { display: flex; gap: 7px; padding: 4px 2px 14px; color: var(--subtle); font: 11px var(--mono); }
-.herdr-tabs span { padding: 7px 12px; border-radius: 999px; }
-.herdr-tabs .on { color: var(--ink); background: rgba(255,255,255,.06); border: 1px solid var(--line); }
-.panes { display: grid; height: 495px; grid-template-columns: 1.15fr .85fr; gap: 8px; }
-.pane { position: relative; border: 1px solid var(--line); border-radius: 13px; background: #050b12; padding: 14px; color: #a9c0ce; font: 11px/1.65 var(--mono); overflow: hidden; }
-.pane .pane-title { display: block; margin-bottom: 14px; color: var(--subtle); font-size: 10px; }
-.pane .prompt { color: var(--sky); }
-.side-panes { display: grid; grid-template-rows: 1fr 1fr; gap: 8px; }
-.picker { position: absolute; z-index: 5; width: min(370px, calc(100% - 32px)); left: 50%; top: 52%; transform: translate(-50%,-50%); border: 1px solid rgba(188,238,255,.25); border-radius: 17px; background: rgba(14,29,45,.97); box-shadow: 0 30px 90px rgba(0,0,0,.65); overflow: hidden; }
-.picker-head { padding: 12px 15px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); display: flex; justify-content: space-between; }
-.picker-list { padding: 8px; }
-.pick { display: grid; grid-template-columns: 1fr auto; gap: 15px; padding: 10px 11px; border-radius: 9px; color: var(--muted); font: 12px var(--mono); }
-.pick b { color: var(--ink); font-weight: 500; display: block; }
-.pick small { color: var(--subtle); }
-.pick.on { background: var(--sky); color: #06202b; }
-.pick.on b, .pick.on small { color: #06202b; }
-.herdr-copy .key-list { display: grid; gap: 12px; margin-top: 28px; }
-.key-row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; border-top: 1px solid var(--line); padding-top: 13px; color: var(--muted); font-size: 15px; }
-.key-row code { color: var(--ink); font-size: 12px; }
-.notice { margin-top: 24px; border: 1px solid var(--line); border-radius: 16px; padding: 15px 17px; color: var(--muted); background: rgba(255,255,255,.025); font-size: 14px; }
-.notice b { color: var(--mint); }
+/* ---------- features ---------- */
+.feats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 30px; border-top: 1px solid var(--line); }
+.feats div { padding: 22px 22px 22px 0; color: var(--muted); font-size: 15.5px; }
+.feats div:not(:nth-child(4n+1)) { padding-left: 22px; border-left: 1px solid var(--line); }
+.feats b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; font-size: 16px; }
+.feats code { color: var(--ink); }
 
-/* Shepherd */
-.shepherd { padding-block: clamp(72px, 9vw, 110px); }
-.shepherd-card { position: relative; display: grid; grid-template-columns: 1fr 310px; align-items: center; gap: 40px; min-height: 420px; border: 1px solid rgba(245,181,68,.24); border-radius: 28px; padding: clamp(28px, 6vw, 72px); overflow: hidden; background: radial-gradient(75% 120% at 90% 50%, rgba(245,181,68,.11), transparent 68%), #0c1825; }
-.shepherd-card .kicker { color: var(--amber); }
-.shepherd-card .btn { border-color: rgba(245,181,68,.3); }
-.phone { width: 248px; height: 456px; justify-self: center; align-self: end; margin-bottom: -85px; border-radius: 40px; padding: 9px; background: linear-gradient(150deg,#304056,#111a26); box-shadow: 0 35px 80px -30px #000; }
-.phone-screen { height: 100%; border-radius: 32px; background: #080d12; padding: 44px 14px 18px; overflow: hidden; }
-.phone-screen h3 { margin: 0 0 3px; font-size: 24px; }
-.phone-screen > p { margin: 0 0 16px; color: #777; font-size: 10px; }
-.machine-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; padding: 10px; border: 1px solid #262c33; border-radius: 13px; background: #12171d; }
-.machine-row .micon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #20262d; }
-.machine-row b { display: block; font-size: 12px; }
-.machine-row span { color: #888; font-size: 9px; }
-.machine-row i { width: 7px; height: 7px; border-radius: 50%; margin-left: auto; background: var(--green); }
-.machine-row:last-child i { background: var(--subtle); }
-.wip { display: inline-flex; margin-bottom: 18px; padding: 6px 9px; border-radius: 999px; background: rgba(245,181,68,.1); color: var(--amber); font: 11px var(--mono); }
+/* ---------- install ---------- */
+.install .split { align-items: start; }
+.install .shell pre { min-height: 470px; }
+.steps { list-style: none; counter-reset: s; padding: 0; margin: 34px 0 0; display: grid; gap: 22px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; color: var(--muted); }
+.steps li::before { content: counter(s); width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: var(--ink); }
+.steps b { color: var(--ink); font-weight: 600; display: block; }
+.steps code { color: var(--ink); overflow-wrap: anywhere; }
+.cmd { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; padding: 9px 9px 9px 13px; color: var(--ink); }
+.cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 13px; scrollbar-width: none; }
+.cmd button { font: inherit; font-size: 11.5px; background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 7px; padding: 4px 9px; cursor: pointer; flex: none; transition: color .2s, border-color .2s; }
+.cmd button:hover { color: var(--ink); border-color: rgba(160,185,220,.35); }
+.reqs { margin-top: 28px; font-size: 14.5px; color: var(--subtle); }
+.reqs a, .reqs code { color: var(--muted); }
 
-/* install */
-.install { border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--night), #060d15); }
-.steps { list-style: none; padding: 0; margin: 30px 0 0; counter-reset: step; display: grid; gap: 22px; }
-.steps li { counter-increment: step; display: grid; grid-template-columns: 39px 1fr; gap: 14px; color: var(--muted); }
-.steps li::before { content: counter(step); width: 33px; height: 33px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--sky); font: 12px var(--mono); }
-.steps b { color: var(--ink); display: block; margin-bottom: 2px; }
-.install-shell { border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: #050b12; }
-.install-shell .bar { padding: 13px 17px; border-bottom: 1px solid var(--line); color: var(--subtle); font: 11px var(--mono); }
-.install-shell pre { min-height: 330px; margin: 0; padding: 22px; color: #c9dbe5; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.8 var(--mono); }
-.install-shell .p { color: var(--sky); }
-.install-shell .good { color: var(--mint); }
-.requirements { margin-top: 28px; color: var(--subtle); font-size: 14px; }
+/* ---------- footer ---------- */
+footer { position: relative; padding: 90px 0 40px; overflow: hidden; border-top: 1px solid var(--line); background: linear-gradient(180deg, var(--night) 0%, #070D17 100%); min-height: 340px; }
+footer .links { display: flex; gap: 22px; flex-wrap: wrap; font-size: 15px; color: var(--muted); position: relative; z-index: 2; }
+footer .links a { color: var(--muted); text-decoration: none; }
+footer .links a:hover { color: var(--ink); }
+footer .sig { position: relative; z-index: 2; margin: 18px 0 0; color: var(--subtle); font-size: 14px; }
+#peek { position: absolute; right: max(16px, calc(50% - 600px)); bottom: -6px; width: min(460px, 60vw); height: auto; }
+#peek .lid { transform-box: fill-box; transform-origin: center; transition: transform .08s; }
+#peek .drift { animation: drift 7s ease-in-out infinite; }
+@keyframes drift { 50% { transform: translateY(-10px); } }
 
-/* footer */
-footer { position: relative; overflow: hidden; padding: 90px 0 45px; border-top: 1px solid var(--line); background: #050b12; }
-footer .big { max-width: 9em; margin: 0; font-size: clamp(48px, 8vw, 102px); line-height: .9; letter-spacing: -.05em; font-weight: 800; }
-footer .big span { color: var(--sky); }
-.footer-links { display: flex; gap: 21px; flex-wrap: wrap; margin-top: 45px; color: var(--muted); font-size: 14px; }
-.footer-links a { text-decoration: none; }
-.footer-links a:hover { color: var(--ink); }
-.footer-sheep { position: absolute; right: max(12px, calc(50% - 570px)); bottom: -15px; width: min(380px, 38vw); opacity: .9; }
-
-/* Grid items default to min-width: auto, so one nowrap snippet would widen the whole page. */
-.hero-grid > *, .split > *, .safe-grid > *, .providers > *, .section-head > *, .shepherd-card > *,
-.guard > *, .steps li > *, .key-row > *, .panes > * { min-width: 0; }
-pre { max-width: 100%; overflow-x: auto; }
-.steps code, .guard code, .lede code { overflow-wrap: anywhere; }
-/* Decorative sky sheep may drift past the edge; clip (not hidden) keeps the sticky nav working. */
-html, body { overflow-x: clip; }
 @media (max-width: 900px) {
-  .hero-grid, .split, .safe-grid { grid-template-columns: minmax(0, 1fr); }
-  .hero { padding-top: 120px; }
-  .hero-grid { gap: 20px; }
-  .sky-scene { height: 480px; min-height: 0; }
-  .providers { grid-template-columns: minmax(0, 1fr); }
-  .provider { min-height: 0; }
-  .provider pre { margin-top: 20px; }
-  .section-head { grid-template-columns: minmax(0, 1fr); }
-  .section-head .body { max-width: 38em; }
-  .plan-card { position: static; }
-  .herdr-stage { order: -1; }
-  .shepherd-card { grid-template-columns: 1fr 260px; }
+  .hero .wrap, .split, .prov { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-top: 110px; }
+  .hero::after { background: linear-gradient(180deg, rgba(11,20,34,.75) 0%, rgba(11,20,34,.35) 50%, var(--night) 100%); }
+  h1 { min-height: 0; }
+  .order-first { order: -1; }
+  .top { grid-template-columns: minmax(0, 1fr); }
+  .feats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feats div:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .feats div:nth-child(even) { padding-left: 22px; border-left: 1px solid var(--line); }
+  .hint { display: none; }
 }
-@media (max-width: 680px) {
+@media (max-width: 640px) {
   body { font-size: 16px; }
-  .nav nav a:not(.gh) { display: none; }
-  .hero { min-height: auto; }
-  .sky-scene { height: 390px; margin-inline: -8px; }
-  .orbit { width: min(330px, 84vw); }
-  .vm-core { width: 104px; height: 104px; border-radius: 30px; }
-  .vm-core svg { width: 54px; }
-  .term-screen { height: 480px; padding-inline: 14px; font-size: 10.8px; }
-  .command-cloud { gap: 6px; }
-  .command-cloud code { font-size: 10.5px; }
-  .panes { grid-template-columns: 1fr; }
-  .side-panes { display: none; }
-  .herdr-stage { min-height: 500px; }
-  .key-row { grid-template-columns: 1fr; gap: 4px; }
-  .shepherd-card { grid-template-columns: 1fr; padding-bottom: 0; }
-  .phone { width: 230px; height: 420px; margin-top: 10px; }
-  footer { padding-bottom: 170px; }
-  .footer-sheep { width: 250px; right: -20px; }
+  .hero .wrap { gap: 60px; }
+  .hero-win .panes { height: 430px; grid-template-rows: 120px 1fr; }
+  .session-win .panes, .herdr-win .panes { height: 460px; }
+  .herdr-win .p-side { display: none; }
+  .herdr-win .panes { grid-template-columns: minmax(0, 1fr); }
+  .seg { display: flex; width: 100%; }
+  .seg button { flex: 1; padding: 9px 6px; font-size: 13px; }
+  .keys li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .feats { grid-template-columns: minmax(0, 1fr); }
+  .feats div + div { border-left: 0 !important; padding-left: 0 !important; }
+  .shell pre, .install .shell pre { min-height: 400px; font-size: 12px; }
+  #peek { width: 80vw; }
+  footer { padding-bottom: 50vw; }
 }
-@media (max-width: 390px) {
-  .wrap { width: min(100% - 24px, 1160px); }
-  .btn { padding-inline: 17px; }
-  .quick { width: 100%; }
-  .cloud-sheep { transform: scale(.9); }
-  .term-bar span { display: none; }
-  .provider { padding: 20px; }
-  .herdr-stage { padding: 10px; }
-  .picker { width: calc(100% - 20px); }
-  .guard { grid-template-columns: 37px 1fr; gap: 12px; }
-}
+@media (max-width: 400px) { .phone { --w: 290px; --h: 600px; } .win { font-size: 10.5px; } }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
-  .fade { opacity: 1; transform: none; }
+  .rv .w > span, .fade { transform: none; opacity: 1; }
 }
 </style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+
 <header class="nav" id="nav">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="cloudsheep home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>cloudsheep</a>
-    <nav aria-label="Primary">
-      <a href="#terminal">CLI</a>
-      <a href="#providers">Providers</a>
+    <a class="brand" href="#top"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#132338"/><g fill="#EAF0F8"><circle cx="24" cy="34" r="11"/><circle cx="34" cy="28" r="12"/><circle cx="42" cy="36" r="9"/><circle cx="31" cy="39" r="9"/></g><ellipse cx="50" cy="33" rx="6" ry="5" fill="#2B2A34"/><path d="M26 47v6M38 47v6" stroke="#2B2A34" stroke-width="3.5" stroke-linecap="round"/></svg>cloudsheep</a>
+    <nav aria-label="Sections">
+      <a href="#session">CLI</a>
+      <a href="#providers">Machines</a>
       <a href="#herdr">herdr</a>
-      <a href="#install">Install</a>
+      <a href="#install">Setup</a>
       <a class="gh" href="https://github.com/zenodea/cloudsheep"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
     </nav>
   </div>
 </header>
 
 <main id="main">
+<!-- ============ HERO ============ -->
 <section class="hero" id="top">
-  <div class="wrap hero-grid">
-    <div>
-      <p class="eyebrow"><i aria-hidden="true"></i>one small CLI · many kinds of machine</p>
-      <h1>Herd your<br><span>VMs.</span></h1>
-      <p class="lede">Shells, port tunnels, source sync, detached jobs, lifecycle, and notifications—from your terminal and from <strong>herdr</strong>.</p>
-      <div class="btns">
-        <a class="btn primary" href="#install">Get cloudsheep <span aria-hidden="true">→</span></a>
-        <a class="btn" href="https://github.com/zenodea/cloudsheep">View on GitHub</a>
-      </div>
-      <div class="quick" aria-label="Quick install command">
-        <code><span class="prompt">$</span> ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/cloudsheep</code>
-        <button type="button" data-copy aria-label="Copy install command">copy</button>
-      </div>
-    </div>
-    <div class="sky-scene" aria-hidden="true">
-      <div class="orbit"></div>
-      <div class="route r1"></div><div class="route r2"></div><div class="route r3"></div>
-      <div class="vm-core"><svg viewBox="0 0 80 64" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="7" width="64" height="20" rx="5"/><rect x="8" y="37" width="64" height="20" rx="5"/><path d="M17 17h1m7 0h1m-9 30h1m7 0h1M35 17h27M35 47h27" stroke-linecap="round"/></svg></div>
-      <div class="cloud-sheep s1"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
-      <div class="cloud-sheep s2"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
-      <div class="cloud-sheep s3"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
-      <div class="cloud-sheep s4"><span class="wool"></span><span class="face"></span><span class="legs"></span></div>
-    </div>
-  </div>
-</section>
-
-<section class="block terminal-section" id="terminal">
+  <canvas id="sky" aria-hidden="true"></canvas>
   <div class="wrap">
-    <div class="section-head">
-      <div><p class="kicker">// one working session</p><h2>Send it out.<br><span class="dim">Bring it home.</span></h2></div>
-      <div class="body"><p>List your machines, send the repo, start work that outlives your connection, follow the output, then collect the result as a branch.</p></div>
+    <div>
+      <p class="eyebrow fade in"><span class="dot"></span>Your VMs, from the terminal and <a href="https://herdr.dev">herdr</a></p>
+      <h1 id="h1" aria-live="polite"><span class="swap" id="h1text"><span class="line"><span class="who">build</span> on <span class="on">heavy</span></span><span class="line">has been running</span><span class="line">for <span class="clock" id="clock">41:07</span></span></span></h1>
+      <p class="lede">Shells, tunnels, source sync and jobs that outlive your laptop lid, on <strong>any machine you can reach</strong>. One small CLI, a key away in herdr.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Set it up <span class="arrow">→</span></a>
+        <a class="btn" href="https://github.com/zenodea/cloudsheep">GitHub</a>
+      </div>
+      <p class="works">Works with
+        <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M4.5 6.5l2 1.7-2 1.7M8 10h3"/></svg>ssh</span>
+        <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5l5.5 3v7L8 14.5l-5.5-3v-7z"/><path d="M2.5 4.5L8 7.5l5.5-3M8 7.5v7"/></svg>Lima</span>
+        <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5l5.5 3v7L8 14.5l-5.5-3v-7z"/><path d="M2.5 4.5L8 7.5l5.5-3M8 7.5v7"/></svg>Multipass</span>
+        <span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5h7a3 3 0 00.4-6 4 4 0 00-7.7-.9A3.5 3.5 0 004.5 12.5z"/></svg>GCP workers</span>
+        <span class="more">and any VM tool with a CLI</span>
+      </p>
     </div>
-    <div class="term-wrap fade">
-      <div class="term-bar"><i></i><i></i><i></i><span>cloudsheep · ~/src/flock</span><button type="button" id="replay">replay</button></div>
-      <div class="term-screen" role="img" aria-label="An animated terminal session using cloudsheep">
-        <div class="term-lines" id="termLines">
-          <div class="tl cmd">cloudsheep ls</div>
-          <div class="tl">devbox  ssh         ubuntu@devbox.example.com</div>
-          <div class="tl">heavy   gcp-worker  task heavy (no lease)</div>
-          <div class="tl">lima    command     default</div>
-          <div class="tl cmd">cloudsheep sync devbox</div>
-          <div class="tl">machine: devbox</div><div class="tl">repo: /Users/you/src/flock</div><div class="tl">base: 8c19d9a7c12af39b70d8c1490f35939cadd6240a</div><div class="tl">dirty: True</div><div class="tl">workdir: ~/src/flock</div><div class="tl">files: 184</div><div class="tl">synced_at: 2026-03-09T23:08:42+00:00</div><div class="tl">skipped_secret_like:</div><div class="tl warn">  - .env</div>
-          <div class="tl cmd">cloudsheep job devbox --job build -- make -j16</div>
-          <div class="tl">machine: devbox</div><div class="tl">job: build</div><div class="tl ok">state: submitted</div><div class="tl">command:</div><div class="tl">  - make</div><div class="tl">  - -j16</div>
-          <div class="tl cmd">cloudsheep logs devbox build --follow</div>
-          <div class="tl">[ 91%] Linking flock</div><div class="tl">[100%] Built target flock</div><div class="tl ok">cloudsheep: job build completed (exit 0)</div>
-          <div class="tl cmd">cloudsheep collect devbox</div>
-          <div class="tl">machine: devbox</div><div class="tl">base: 8c19d9a7c12af39b70d8c1490f35939cadd6240a</div><div class="tl">changed: True</div><div class="tl ok">branch: cloudsheep/devbox-20260309-231410</div><div class="tl">commit: 64ff2bba672cc04b5f775a432824513c2bd8110c</div><div class="tl">stat:</div><div class="tl">  src/flock.py | 18 ++++++++++++------</div><div class="tl">  1 file changed, 12 insertions(+), 6 deletions(-)</div>
-          <div class="tl cmd">cloudsheep down devbox</div>
-          <div class="tl">machine: devbox</div><div class="tl">action: down</div><div class="tl">applied: False</div><div class="tl">would_run: gcloud compute instances stop devbox --zone europe-west2-a</div><div class="tl warn">nothing done; rerun with --yes to apply</div>
+    <div class="hero-slot">
+      <div class="win hero-win" id="heroWin" aria-label="herdr with a VM shell and a job's logs" role="img">
+        <div class="win-bar"><i></i><i></i><i></i><span class="win-tabs"><span>api</span><span class="on" id="heroTab">🐑 heavy</span><span>docs</span></span></div>
+        <div class="toast" id="heroToast"><b id="toastT">🐑 heavy</b><span id="toastB">job build completed (exit 0)</span></div>
+        <div class="panes">
+          <div class="pane"><div class="pane-h"><b id="shellH">shell · heavy</b><span>~/…/heavy/source</span></div><div class="lines" id="heroShell"></div></div>
+          <div class="pane focus"><div class="pane-h"><b id="logsH">logs · build</b><span id="logsS">running</span></div><div class="lines" id="heroLogs"></div></div>
         </div>
       </div>
     </div>
-    <div class="command-cloud fade" aria-label="Cloudsheep commands">
-      <code>ls</code><code>status</code><code>shell</code><code>run</code><code>tunnel</code><code>sync</code><code>collect</code><code>job</code><code>jobs</code><code>logs</code><code>cancel</code><code>up</code><code>down</code><code>extend</code><code>ssh-config</code><code>watch</code><code>open</code>
+  </div>
+  <div class="hint" id="hint">click the glowing sheep</div>
+</section>
+
+<!-- ============ SESSION ============ -->
+<section class="block" id="session">
+  <div class="wrap split">
+    <div>
+      <p class="kicker">// one session</p>
+      <h2 class="rv">Send it out. Bring it back.</h2>
+      <div class="body fade">
+        <p>Sync sends your repo, uncommitted edits included. Start the slow thing as a job, close the laptop, and follow the logs later.</p>
+        <p>Collect brings the machine's changes home as a <strong>new branch</strong>. Your checkout is never touched.</p>
+      </div>
+      <ul class="keys fade" style="--d:120ms">
+        <li><code>sync</code><span>Tracked and new files, minus anything that looks like a secret.</span></li>
+        <li><code>job · logs -f</code><span>Detached on the machine. Survives disconnects.</span></li>
+        <li><code>collect</code><span>A new local branch from the machine's workdir.</span></li>
+        <li><code>tunnel 3000</code><span>Or <code>9000:3000</code>, or a preset like <code>novnc</code>.</span></li>
+      </ul>
+    </div>
+    <div class="fade order-first">
+      <div class="win session-win" role="img" aria-label="A terminal session: sync, job, logs and collect">
+        <div class="win-bar"><i></i><i></i><i></i><span style="margin-left:8px">~/src/flock</span></div>
+        <div class="panes"><div class="pane"><div class="lines" id="sess"></div></div></div>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- ============ PROVIDERS ============ -->
 <section class="block" id="providers">
   <div class="wrap">
-    <div class="section-head">
-      <div><p class="kicker">// bring your own machine</p><h2>Three ways<br>into the flock.</h2></div>
-      <div class="body"><p>Each machine names a provider. Capabilities are explicit, and an unsupported operation fails cleanly.</p></div>
-    </div>
-    <div class="providers">
-      <article class="provider fade">
-        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3m6 0h4"/></svg></div>
-        <h3>ssh</h3><p>Anything you can SSH into: a cloud VM, a guest, or a box under the desk.</p>
-        <pre><span class="key">[machines.devbox]</span>
-provider = <span class="str">"ssh"</span>
-host = <span class="str">"devbox.example.com"</span>
-user = <span class="str">"ubuntu"</span>
-workdir = <span class="str">"~/src/myrepo"</span>
-ports = { app = 3000 }</pre>
-      </article>
-      <article class="provider fade">
-        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16M8 3 4 7l4 4m8 2 4 4-4 4"/></svg></div>
-        <h3>command</h3><p>Lima, Multipass, OrbStack, Tart, or another VM tool with a CLI. Give each operation a shell template.</p>
-        <pre><span class="key">[machines.lima]</span>
-provider = <span class="str">"command"</span>
-instance = <span class="str">"default"</span>
-status = <span class="str">"limactl list {instance} --json"</span>
-shell = <span class="str">"limactl shell {instance}"</span>
-up = <span class="str">"limactl start {instance}"</span></pre>
-      </article>
-      <article class="provider fade">
-        <div class="provider-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7.5 18.5h9.2a4.3 4.3 0 0 0 .4-8.6A6 6 0 0 0 5.7 8a5.3 5.3 0 0 0 1.8 10.5Z"/><path d="M9 14h6m-3-3v6"/></svg></div>
-        <h3>gcp-worker</h3><p>Bundle's disposable GCP workers, with agent.py retaining authority over leases, caps, source, and deletion.</p>
-        <pre><span class="key">[providers.gcp-worker]</span>
-kit = <span class="str">"~/Work/bundle/scripts/gcp-worker"</span>
-repo = <span class="str">"~/Work/bundle"</span>
-
-<span class="key">[machines.heavy]</span>
-provider = <span class="str">"gcp-worker"</span>
-task = <span class="str">"heavy"</span>
-create = { lease = <span class="str">"1h"</span>, ttl = <span class="str">"4h"</span> }</pre>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section class="block safe" id="safe">
-  <div class="wrap safe-grid">
-    <div>
-      <p class="kicker">// safe by default</p><h2>See the move<br>before it happens.</h2>
-      <div class="body"><p>Lifecycle commands print their plan first. Add <code>--yes</code> only when it looks right.</p></div>
-      <div class="plan-card fade">
-        <div class="top"><span>cloudsheep down heavy</span><span>plan</span></div>
-        <pre>machine: heavy
-action: down
-applied: False
-effect: <span class="n">collects into a new branch, then DELETES the VM</span>
-would_run:
-  python3 agent.py release ...
-
-<span class="c">nothing done; rerun with --yes to apply</span></pre>
+    <div class="top">
+      <div>
+        <p class="kicker">// machines</p>
+        <h2 class="rv">ssh, a CLI, or a cloud.</h2>
+        <div class="body fade"><p>Each machine names a provider. It does what its provider supports and says so when it can't.</p></div>
+      </div>
+      <div class="seg fade" id="seg" role="tablist" aria-label="Providers">
+        <button class="on" data-p="ssh" role="tab" aria-selected="true">Any SSH host</button>
+        <button data-p="command" role="tab" aria-selected="false">Lima, Multipass…</button>
+        <button data-p="gcp" role="tab" aria-selected="false">GCP worker</button>
       </div>
     </div>
-    <div class="guards">
-      <article class="guard fade"><span class="num">01</span><div><h3>Plan, then apply</h3><p><code>up</code>, <code>down</code>, and <code>extend</code> show the action without applying it. <code>--yes</code> is the deliberate step.</p></div></article>
-      <article class="guard fade"><span class="num">02</span><div><h3>Collect, don't overwrite</h3><p>Changes come back on a new local branch. Your HEAD, index, and working tree stay untouched.</p></div></article>
-      <article class="guard fade"><span class="num">03</span><div><h3>Skip secret-looking paths</h3><p>SSH sync reports and skips <code>.env*</code>, keys, <code>.ssh/</code>, <code>.aws/</code>, and related paths (while allowing example, sample, and template env files). <em>It is a useful guardrail, not a secret scanner.</em></p></div></article>
-      <article class="guard fade"><span class="num">04</span><div><h3>Disconnect freely</h3><p>On SSH machines, detached jobs live under <code>~/.cloudsheep/jobs</code> and survive your connection. Follow logs later, or cancel the process group.</p></div></article>
+    <div class="prov fade">
+      <div class="box"><h4>~/.config/cloudsheep/machines.toml</h4><pre class="cfg" id="cfg"></pre></div>
+      <div class="box">
+        <h4>cloudsheep caps <span id="capName">devbox</span></h4>
+        <div class="caps" id="caps"></div>
+        <div class="legend"><span><i></i>supported</span><span><i class="d"></i>with your own hook command</span></div>
+        <p class="cap-cap" id="capCap">&nbsp;</p>
+      </div>
     </div>
   </div>
 </section>
 
+<!-- ============ SAFE ============ -->
+<section class="block" id="safe">
+  <div class="wrap split">
+    <div class="fade">
+      <div class="shell"><div class="bar"><i></i><i></i><i></i><span>~/Work/bundle</span></div><pre id="plan"></pre></div>
+    </div>
+    <div>
+      <p class="kicker">// safe by default</p>
+      <h2 class="rv">See the plan first.</h2>
+      <div class="body fade">
+        <p><code>up</code>, <code>down</code> and <code>extend</code> print what they would do and stop. Add <code>--yes</code> when it reads right.</p>
+        <p>If starting a machine costs money, or stopping it deletes one, the plan says so.</p>
+      </div>
+      <ul class="keys fade" style="--d:120ms">
+        <li><code>--yes</code><span>Nothing billable or destructive without it.</span></li>
+        <li><code>new branch</code><span>Collect never touches your HEAD, index or working tree.</span></li>
+        <li><code>.env</code><span>Secret-looking files are skipped and listed. It's a guardrail, not a scanner.</span></li>
+        <li><code>agent.py</code><span>On GCP workers the existing controller keeps leases and deletion.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HERDR ============ -->
 <section class="block" id="herdr">
   <div class="wrap split">
-    <div class="herdr-copy">
-      <p class="kicker">// from herdr</p><h2>Keep the flock<br>in your multiplexer.</h2>
-      <div class="body"><p>Pick a machine, then an action. Shells open as named tabs; logs and tunnels open in splits. Sync and collect use the focused pane's repo.</p></div>
-      <div class="key-list fade">
-        <div class="key-row"><code>prefix + u</code><span>Open the machine and action picker.</span></div>
-        <div class="key-row"><code>prefix + shift + u</code><span>Toggle <code>cloudsheep watch</code> in the background.</span></div>
-        <div class="key-row"><code>cloudsheep open</code><span>Build your own tab and split bindings.</span></div>
+    <div>
+      <p class="kicker">// herdr</p>
+      <h2 class="rv">A key away.</h2>
+      <div class="body fade">
+        <p>Pick a machine, then an action. Shells open as a tab named after the machine. Logs and tunnels open in a split. Sync and collect use the repo of the pane you're in.</p>
+        <p>A background watch tells you when a job finishes or a lease is about to run out.</p>
       </div>
-      <div class="notice fade"><b>🐑 heavy</b> · job build completed (exit 0)<br><span>Watch also warns when a lease or hard deadline is within 20 minutes.</span></div>
+      <ul class="keys fade" style="--d:120ms">
+        <li><code>prefix u</code><span>Machine, then action.</span></li>
+        <li><code>prefix ⇧u</code><span>Turn notifications on or off.</span></li>
+        <li><code>cloudsheep open</code><span>Make your own bindings: any command, in a tab or a split.</span></li>
+      </ul>
     </div>
-    <div class="herdr-stage fade" aria-label="Mockup of cloudsheep inside herdr">
-      <div class="herdr-tabs"><span>api</span><span class="on">🐑 devbox</span><span>docs</span></div>
-      <div class="panes">
-        <div class="pane"><span class="pane-title">shell · devbox</span><span class="prompt">ubuntu@devbox</span>:~/src/flock$ git status<br>On branch main<br>nothing to commit, working tree clean</div>
-        <div class="side-panes"><div class="pane"><span class="pane-title">logs · build</span>[ 91%] Linking flock<br><span style="color:var(--green)">[100%] Built target flock</span></div><div class="pane"><span class="pane-title">tunnel · app</span>http://127.0.0.1:3000<br>→ devbox:3000<br><br><span style="color:var(--subtle)">Ctrl-C to close</span></div></div>
-      </div>
-      <div class="picker">
-        <div class="picker-head"><span>cloudsheep</span><span>machine → action</span></div>
-        <div class="picker-list">
-          <div class="pick"><span><b>devbox</b><small>ssh · reachable</small></span><span>shell</span></div>
-          <div class="pick on"><span><b>heavy</b><small>gcp-worker · running</small></span><span>logs ▸</span></div>
-          <div class="pick"><span><b>lima</b><small>command · stopped</small></span><span>up</span></div>
+    <div class="fade order-first">
+      <div class="win herdr-win" id="herdrWin" role="img" aria-label="The cloudsheep picker in herdr">
+        <div class="win-bar"><i></i><i></i><i></i><span class="win-tabs"><span class="on">bundle</span><span>web</span></span></div>
+        <div class="toast" id="hToast"><b>🐑 heavy</b><span>job build completed (exit 0)</span></div>
+        <div class="popup" id="popup"><div class="q" id="popQ">🐑 machine › <span id="popF"></span><span class="caret"></span></div><div class="opts" id="popO"></div></div>
+        <div class="panes">
+          <div class="pane focus"><div class="pane-h"><b>pi · bundle</b><span>~/Work/bundle</span></div><div class="lines" id="hMain"></div></div>
+          <div class="pane p-side"><div class="pane-h"><b>zsh</b><span>~/Work/bundle</span></div><div class="lines" id="hSide"></div></div>
+          <div class="pane p-logs"><div class="pane-h"><b>logs · build</b><span>heavy</span></div><div class="lines" id="hLogs"></div></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="shepherd" id="shepherd">
+<!-- ============ SHEPHERD ============ -->
+<section class="block shep" id="shepherd">
+  <div class="wrap split">
+    <div class="phone-slot fade">
+      <div class="phone" id="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="statusbar"><span>23:14</span><i></i></div>
+          <div class="ph-top"><small>Agents</small><h3>Machines</h3><p id="phSum">3 machines · 1 running</p></div>
+          <div class="mlist">
+            <div class="mrow"><div class="hd"><span class="ic">▭</span><span class="t"><b>devbox</b><span>ssh · 1 job</span></span><span class="pill">reachable</span></div></div>
+            <div class="mrow" id="mHeavy"><div class="hd"><span class="ic">☁</span><span class="t"><b>heavy</b><span id="mHeavyS">gcp-worker · lease 52m</span></span><span class="pill run" id="mHeavyP">RUNNING</span></div><div class="acts" id="mActs"><span>Shell</span><span>Logs</span><span id="mStop">Stop</span></div></div>
+            <div class="mrow"><div class="hd"><span class="ic">▣</span><span class="t"><b>lima</b><span>command</span></span><span class="pill">Running</span></div></div>
+          </div>
+          <div class="sheet" id="sheet">
+            <h5>Stop heavy?</h5>
+            <p class="eff">collects into a new branch, then DELETES the VM</p>
+            <code>agent.py release --task heavy --repo ~/Work/bundle</code>
+            <div class="btns"><span>Cancel</span><span class="d" id="sDo">Stop VM</span></div>
+          </div>
+          <div class="finger" id="finger"></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="soon">in the works</p>
+      <p class="kicker">// on your phone</p>
+      <h2 class="rv">And from Shepherd.</h2>
+      <div class="body fade">
+        <p><a href="https://dea.dev/shepherd/">Shepherd</a> is getting a Machines screen backed by cloudsheep: state, jobs and logs, a shell that opens as a herdr pane, and start, stop or extend after you've read the plan.</p>
+      </div>
+      <div class="cta fade" style="margin-top:28px"><a class="btn primary" href="https://dea.dev/shepherd/">Meet Shepherd <span class="arrow">→</span></a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="block" style="padding-top:0">
   <div class="wrap">
-    <div class="shepherd-card fade">
-      <div>
-        <span class="wip">in progress</span>
-        <p class="kicker">// Machines in Shepherd</p>
-        <h2>Your flock,<br>from your phone.</h2>
-        <div class="body"><p>A Machines screen for <a href="https://dea.dev/shepherd/">Shepherd</a> is being built right now—the same family, one more way to keep an eye on the herd.</p></div>
-        <a class="btn" href="https://dea.dev/shepherd/">Meet Shepherd <span aria-hidden="true">→</span></a>
-      </div>
-      <div class="phone" aria-label="Concept mockup of Machines in Shepherd">
-        <div class="phone-screen"><h3>Machines</h3><p>3 machines · 2 reachable</p>
-          <div class="machine-row"><span class="micon">🐑</span><span><b>devbox</b><span>reachable · 1 job</span></span><i></i></div>
-          <div class="machine-row"><span class="micon">☁</span><span><b>heavy</b><span>running · lease 52m</span></span><i></i></div>
-          <div class="machine-row"><span class="micon">⌘</span><span><b>lima</b><span>stopped</span></span><i></i></div>
-        </div>
-      </div>
+    <div class="feats fade">
+      <div><b>Tunnels</b>Ports and presets, like <code>novnc</code> for a worker's desktop.</div>
+      <div><b>Detached jobs</b>Start, follow, cancel. They outlive the connection.</div>
+      <div><b>ssh-config</b>Host blocks for plain <code>ssh</code> and <code>rsync</code>.</div>
+      <div><b>Watch</b>herdr notifications for finished jobs and expiring leases.</div>
+      <div><b>Templates</b>Teach it any VM tool with a line per operation.</div>
+      <div><b>JSON</b><code>--json</code> on every data command, for your own tools.</div>
+      <div><b>Passthrough</b><code>native</code> runs a provider's own commands.</div>
+      <div><b>No dependencies</b>Python's standard library. <code>ssh</code> and <code>rsync</code> for SSH hosts.</div>
     </div>
   </div>
 </section>
 
+<!-- ============ INSTALL ============ -->
 <section class="block install" id="install">
   <div class="wrap split">
     <div>
-      <p class="kicker">// install</p><h2>Two commands.<br>Then add a machine.</h2>
+      <h2 class="rv">Setup.</h2>
       <ol class="steps fade">
-        <li><div><b>Put the CLI on your path.</b>Cloudsheep is Python standard library only.</div></li>
-        <li><div><b>Write the starter config.</b><code>cloudsheep init</code> copies the example to <code>~/.config/cloudsheep/machines.toml</code>.</div></li>
-        <li><div><b>Uncomment what you use.</b>Plain SSH, a command-line VM tool, or bundle's GCP workers.</div></li>
+        <li><div><b>Get it on your path</b>Clone it anywhere and link the CLI.
+          <div class="cmd"><code>ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/cloudsheep</code><button type="button" data-copy>copy</button></div></div></li>
+        <li><div><b>Describe your machines</b><code>init</code> writes an example to <code>~/.config/cloudsheep/machines.toml</code>. Uncomment what you use.
+          <div class="cmd"><code>cloudsheep init</code><button type="button" data-copy>copy</button></div></div></li>
+        <li><div><b>Bind it in herdr</b>Paste <code>herdr/keys.toml</code> into your herdr config, then reload.
+          <div class="cmd"><code>herdr server reload-config</code><button type="button" data-copy>copy</button></div></div></li>
       </ol>
-      <p class="requirements">Needs Python 3.11+. The SSH provider uses <code>ssh</code> and <code>rsync</code>; the herdr picker uses <code>fzf</code> and <code>jq</code>.</p>
+      <p class="reqs fade">Needs Python 3.11+. SSH hosts need <code>ssh</code> and <code>rsync</code>; the herdr picker uses <code>fzf</code> and <code>jq</code>. Details in the <a href="https://github.com/zenodea/cloudsheep#readme">README</a>.</p>
     </div>
-    <div class="install-shell fade">
-      <div class="bar">~/Work/cloudsheep</div>
-      <pre><span class="p">$</span> ln -s ~/Work/cloudsheep/bin/cloudsheep \
-  ~/.local/bin/cloudsheep
-<span class="p">$</span> cloudsheep init
-<span class="good">wrote ~/.config/cloudsheep/machines.toml; edit it to add your machines</span>
-
-<span class="p">$</span> $EDITOR ~/.config/cloudsheep/machines.toml
-<span class="p">$</span> cloudsheep ls
-
-devbox  ssh         ubuntu@devbox.example.com
-lima    command     default
-
-<span class="p">$</span> cloudsheep shell devbox
-<span class="good">ubuntu@devbox</span>:~/src/myrepo$ <span class="caret">_</span></pre>
+    <div class="fade" style="--d:150ms">
+      <div class="shell"><div class="bar"><i></i><i></i><i></i><span>~</span></div><pre id="setup"></pre></div>
     </div>
   </div>
 </section>
@@ -529,74 +535,492 @@ lima    command     default
 
 <footer>
   <div class="wrap">
-    <p class="big">Go herd<br>some <span>clouds.</span></p>
-    <div class="footer-links">
+    <div class="links">
       <a href="https://github.com/zenodea/cloudsheep">GitHub</a>
-      <a href="https://github.com/zenodea/cloudsheep#providers">Providers</a>
-      <a href="https://github.com/zenodea/cloudsheep#herdr">herdr setup</a>
+      <a href="https://github.com/zenodea/cloudsheep#readme">README</a>
+      <a href="https://herdr.dev">herdr</a>
       <a href="https://dea.dev/shepherd/">Shepherd</a>
     </div>
+    <p class="sig">A sibling of Shepherd. Counting VMs so you can sleep.</p>
   </div>
-  <svg class="footer-sheep" viewBox="0 0 480 300" aria-hidden="true">
-    <defs><radialGradient id="wool" cx="60%" cy="25%" r="85%"><stop offset="0" stop-color="#f2fdff"/><stop offset="1" stop-color="#bed5dc"/></radialGradient></defs>
-    <g fill="url(#wool)"><circle cx="120" cy="220" r="105"/><circle cx="220" cy="180" r="120"/><circle cx="330" cy="220" r="100"/><circle cx="270" cy="95" r="80"/></g>
-    <ellipse cx="370" cy="160" rx="72" ry="88" fill="#172735"/>
-    <ellipse cx="306" cy="111" rx="44" ry="19" transform="rotate(20 306 111)" fill="#172735"/>
-    <ellipse cx="430" cy="112" rx="44" ry="19" transform="rotate(-20 430 112)" fill="#172735"/>
-    <circle cx="345" cy="145" r="12" fill="#edf7fa"/><circle cx="397" cy="145" r="12" fill="#edf7fa"/>
-    <circle cx="348" cy="145" r="5" fill="#091522"/><circle cx="400" cy="145" r="5" fill="#091522"/>
-    <ellipse cx="372" cy="197" rx="13" ry="8" fill="#091522"/>
+  <svg id="peek" viewBox="0 0 840 520" aria-hidden="true">
+    <defs>
+      <radialGradient id="fwool" cx=".62" cy=".3" r=".8"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#CFDDF0"/></radialGradient>
+      <linearGradient id="fface" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3A3947"/><stop offset="1" stop-color="#23222C"/></linearGradient>
+      <linearGradient id="fcloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1C3354"/><stop offset="1" stop-color="#0F1D33"/></linearGradient>
+    </defs>
+    <g class="drift">
+      <g transform="translate(60 -330)">
+        <g fill="url(#fwool)">
+          <circle cx="120" cy="930" r="190"/><circle cx="330" cy="1000" r="160"/><circle cx="20" cy="890" r="130"/><circle cx="210" cy="790" r="130"/><circle cx="420" cy="900" r="110"/><circle cx="520" cy="980" r="120"/>
+        </g>
+        <g transform="rotate(-14 330 730)">
+          <ellipse cx="225" cy="690" rx="62" ry="26" transform="rotate(20 225 690)" fill="#2B2A34"/>
+          <ellipse cx="438" cy="690" rx="62" ry="26" transform="rotate(-20 438 690)" fill="#2B2A34"/>
+          <ellipse cx="330" cy="740" rx="96" ry="122" fill="url(#fface)"/>
+          <g fill="url(#fwool)"><circle cx="282" cy="628" r="46"/><circle cx="332" cy="610" r="50"/><circle cx="382" cy="628" r="44"/></g>
+          <g class="lid"><circle cx="294" cy="712" r="21" fill="#FFFFFF"/><circle id="pl" cx="298" cy="704" r="11" fill="#14131A"/></g>
+          <g class="lid"><circle cx="368" cy="712" r="21" fill="#FFFFFF"/><circle id="pr" cx="372" cy="704" r="11" fill="#14131A"/></g>
+          <ellipse cx="331" cy="806" rx="20" ry="11" fill="#17161D"/>
+        </g>
+      </g>
+    </g>
+    <g fill="url(#fcloud)" opacity=".95"><circle cx="90" cy="540" r="90"/><circle cx="230" cy="560" r="80"/><circle cx="660" cy="550" r="95"/><circle cx="800" cy="530" r="80"/></g>
   </svg>
 </footer>
 
 <script>
 (() => {
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const nav = document.querySelector("#nav");
-  addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 18), { passive: true });
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const sleep = (ms) => new Promise((r) => setTimeout(r, reduced ? Math.min(ms, 30) : ms));
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+const fmt = (s) => { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
 
-  if (!reduced && "IntersectionObserver" in window) {
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      if (entry.isIntersecting) { entry.target.classList.add("in"); observer.unobserve(entry.target); }
-    }), { threshold: .12 });
-    document.querySelectorAll(".fade").forEach((el) => observer.observe(el));
-  } else {
-    document.querySelectorAll(".fade").forEach((el) => el.classList.add("in"));
-  }
+/* ---------- nav + reveals ---------- */
+const nav = $("#nav");
+addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 20), { passive: true });
+$$(".rv").forEach((el) => {
+  let i = 0;
+  const walk = (node) => [...node.childNodes].forEach((n) => {
+    if (n.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach((part) => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) return frag.append(part);
+        const w = document.createElement("span"); w.className = "w";
+        w.innerHTML = `<span style="--i:${i++}">${esc(part)}</span>`; frag.append(w);
+      });
+      n.replaceWith(frag);
+    } else if (n.nodeType === 1) walk(n);
+  });
+  walk(el);
+});
+const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .2, rootMargin: "0px 0px -8% 0px" });
+$$(".rv, .fade").forEach((el) => io.observe(el));
+const whenVisible = (el, cb, threshold = .35) => {
+  const state = { visible: false };
+  new IntersectionObserver(([e]) => { state.visible = e.isIntersecting; cb && cb(state.visible); }, { threshold }).observe(el);
+  return state;
+};
+const waitFor = async (state) => { while (!state.visible || document.visibilityState !== "visible") await sleep(250); };
 
-  document.querySelectorAll("[data-copy]").forEach((button) => button.addEventListener("click", async () => {
-    const command = "ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/cloudsheep";
-    try { await navigator.clipboard.writeText(command); button.textContent = "copied"; }
-    catch { button.textContent = "select"; }
-    setTimeout(() => { button.textContent = "copy"; }, 1600);
-  }));
+/* A pane of lines; segments are [class, text]. */
+function pane(el, max = 40) {
+  return {
+    add(segs) { const d = document.createElement("div"); d.className = "ln"; d.innerHTML = segs.map(([c, t]) => `<span class="${c}">${esc(t)}</span>`).join(""); el.append(d); while (el.children.length > max) el.firstChild.remove(); return d; },
+    async type(prompt, text, speed = 1) {
+      const d = this.add(prompt); const sp = document.createElement("span"); d.append(sp);
+      const c = document.createElement("span"); c.className = "caret"; d.append(c);
+      for (const ch of text) { sp.textContent += ch; await sleep((18 + Math.random() * 34) * speed); }
+      await sleep(300); c.remove();
+    },
+    clear() { el.innerHTML = ""; },
+  };
+}
 
-  const terminal = document.querySelector("#termLines");
-  const source = [...terminal.children].map((line) => ({ text: line.textContent, cls: line.className }));
-  let runId = 0;
-  async function play() {
-    if (reduced) return;
-    const id = ++runId;
-    terminal.replaceChildren();
-    for (let i = 0; i < source.length; i++) {
-      if (id !== runId) return;
-      const line = document.createElement("div");
-      line.className = source[i].cls;
-      line.textContent = source[i].text;
-      terminal.append(line);
-      let wait = 105;
-      if (source[i].cls.includes("cmd")) wait = 620;
-      else if (source[i].text === "") wait = 60;
-      await new Promise((resolve) => setTimeout(resolve, wait));
+/* ---------- hero: a job, its logs, and the headline ---------- */
+const RUNS = [
+  { job: "build", machine: "heavy", provider: "gcp-worker", start: 41 * 60 + 7, cwd: "agent@bundle-agent-6b1f:~/…/heavy/source$",
+    lines: ["[ 61%] Building CXX object kernel/CMakeFiles/kernel.dir/solve.cpp.o", "[ 68%] Building CXX object kernel/CMakeFiles/kernel.dir/mesh.cpp.o", "[ 74%] Linking CXX static library libkernel.a", "[ 81%] Building CXX object app/CMakeFiles/app.dir/main.cpp.o", "[ 88%] Building CXX object app/CMakeFiles/app.dir/render.cpp.o", "[ 94%] Linking CXX executable app", "[100%] Built target app"] },
+  { job: "tests", machine: "devbox", provider: "ssh", start: 12 * 60 + 30, cwd: "ubuntu@devbox:~/src/flock$",
+    lines: ["tests/test_api.py ........................   [ 38%]", "tests/test_jobs.py ..............          [ 61%]", "tests/test_sync.py ...........            [ 79%]", "tests/test_collect.py .........          [ 94%]", "tests/test_cli.py ....                   [100%]", "", "=========== 312 passed in 731.08s ==========="] },
+  { job: "bake", machine: "gpu-box", provider: "ssh", start: 63 * 60 + 11, cwd: "zeno@gpu-box:~/scenes$",
+    lines: ["frame 0412/0480  1.9s  denoise ok", "frame 0430/0480  2.0s  denoise ok", "frame 0448/0480  1.8s  denoise ok", "frame 0466/0480  2.1s  denoise ok", "frame 0480/0480  1.9s  denoise ok", "wrote out/scene-0001..0480.exr"] },
+];
+let run = 0, clockT = RUNS[0].start, done = false, idle = 0, lastTick = performance.now();
+const h1 = $("#h1"), h1text = $("#h1text"), logs = pane($("#heroLogs")), shellP = pane($("#heroShell"), 8);
+function setHeadline(html) {
+  if (reduced) { h1text.innerHTML = html; return; }
+  h1.classList.add("leaving");
+  setTimeout(() => { h1text.innerHTML = html; h1.classList.remove("leaving"); h1.classList.add("entering"); requestAnimationFrame(() => requestAnimationFrame(() => h1.classList.remove("entering"))); }, 320);
+}
+const runningHTML = (r, t) => `<span class="line"><span class="who">${r.job}</span> on <span class="on">${r.machine}</span></span><span class="line">has been running</span><span class="line">for <span class="clock" id="clock">${fmt(t)}</span></span>`;
+const heroVis = whenVisible($("#heroWin"), null, .4);
+let logTimer = 0, logIdx = 0;
+function startRun(i, first = false) {
+  const r = RUNS[i];
+  run = i; clockT = r.start; done = false; idle = 0; logIdx = 0;
+  $("#heroTab").textContent = `🐑 ${r.machine}`;
+  $("#shellH").textContent = `shell · ${r.machine}`;
+  $("#logsH").textContent = `logs · ${r.job}`;
+  $("#logsS").textContent = "running"; $("#logsS").style.color = "";
+  $("#heroToast").classList.remove("on");
+  logs.clear(); shellP.clear();
+  shellP.add([["c-p", r.cwd], ["", " git status --short"]]);
+  shellP.add([["c-d", " M src/solver.py"]]);
+  shellP.add([["c-p", r.cwd], ["", " "]]);
+  logs.add([["c-d", `$ cloudsheep logs ${r.machine} ${r.job} --follow`]]);
+  for (; logIdx < 2; logIdx++) logs.add([["", r.lines[logIdx]]]);
+  if (first) h1text.innerHTML = runningHTML(r, clockT); else setHeadline(runningHTML(r, clockT));
+  sky.stick(`${r.machine} · ${r.job}`);
+}
+async function finish() {
+  if (done) return;
+  done = true;
+  const r = RUNS[run];
+  while (logIdx < r.lines.length) { logs.add([["", r.lines[logIdx++]]]); await sleep(110); }
+  logs.add([["c-d", `cloudsheep: job ${r.job} completed (exit 0)`]]);
+  $("#logsS").textContent = "exit 0"; $("#logsS").style.color = "var(--done)";
+  $("#toastT").textContent = `🐑 ${r.machine}`; $("#toastB").textContent = `job ${r.job} completed (exit 0)`;
+  $("#heroToast").classList.add("on");
+  sky.finish();
+  setHeadline(`<span class="line"><span class="ok">Done.</span></span><span class="line"><span class="who">${r.job}</span> finished</span><span class="line">on <span class="on">${r.machine}</span>.</span>`);
+  $("#hint").style.opacity = 0;
+  await sleep(4200);
+  startRun((run + 1) % RUNS.length);
+}
+function tick(now) {
+  const dt = Math.min(.1, (now - lastTick) / 1000); lastTick = now;
+  if (!done) {
+    clockT += dt;
+    const c = $("#clock"); if (c) c.textContent = fmt(clockT);
+    if (heroVis.visible && document.visibilityState === "visible") {
+      idle += dt; logTimer += dt;
+      const r = RUNS[run];
+      if (logTimer > 1.1 && logIdx < r.lines.length - 2) { logTimer = 0; logs.add([["", r.lines[logIdx++]]]); }
+      if (idle > 8) finish();
     }
   }
-  document.querySelector("#replay").addEventListener("click", play);
-  if (!reduced && "IntersectionObserver" in window) {
-    const termObserver = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) { play(); termObserver.disconnect(); }
-    }, { threshold: .35 });
-    termObserver.observe(document.querySelector(".term-wrap"));
+  requestAnimationFrame(tick);
+}
+
+/* ---------- the sky: cloud-sheep drifting, blown about by your cursor ---------- */
+const sky = (() => {
+  const cv = $("#sky"), ctx = cv.getContext("2d");
+  let W = 0, H = 0, dpr = 1, bg = null, sheep = [], mouse = { x: -999, y: -999, on: false }, stuck = null, label = "", fin = 0;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(devicePixelRatio || 1, 2); W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr;
+    bg = document.createElement("canvas"); bg.width = cv.width; bg.height = cv.height;
+    const g = bg.getContext("2d"); g.scale(dpr, dpr);
+    const grad = g.createRadialGradient(W * .78, H * .1, 0, W * .78, H * .1, Math.max(W, H) * .9);
+    grad.addColorStop(0, "#17304F"); grad.addColorStop(.5, "#0F1D33"); grad.addColorStop(1, "#0B1422");
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    const n = Math.floor(W * H / 2600);
+    for (let i = 0; i < n; i++) { g.fillStyle = `rgba(200,220,255,${rnd(.08, .5) * Math.random()})`; g.beginPath(); g.arc(Math.random() * W, Math.random() * H, rnd(.3, 1.2), 0, 7); g.fill(); }
+    const count = W < 700 ? 9 : Math.min(18, Math.floor(W * H / 70000));
+    while (sheep.length < count) sheep.push(make());
+    sheep.length = count;
   }
+  function make() {
+    return { x: rnd(0, W), y: rnd(110, H - 60), vx: rnd(.12, .32), vy: 0, r: rnd(13, 22) * (W < 700 ? .8 : 1), seed: Math.random() * 99, dir: 1 };
+  }
+  addEventListener("pointermove", (e) => { const r = cv.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; mouse.on = mouse.y > 0 && mouse.y < H; }, { passive: true });
+  cv.parentElement.addEventListener("pointerleave", () => { mouse.on = false; });
+  cv.parentElement.addEventListener("click", (e) => {
+    if (!stuck || e.target.closest(".win, a, button")) return;
+    const r = cv.getBoundingClientRect();
+    if (Math.hypot(e.clientX - r.left - stuck.x, e.clientY - r.top - stuck.y) < stuck.r * 2) finish();
+  });
+  function step(dt) {
+    for (const s of sheep) {
+      if (s === stuck) {
+        const dx = s.tx - s.x, dy = s.ty - s.y, d = Math.hypot(dx, dy);
+        if (d > 2) { const v = Math.min(2, d / 30 + .2); s.vx += (dx / d * v - s.vx) * .06; s.vy += (dy / d * v - s.vy) * .06; } else { s.vx *= .85; s.vy *= .85; }
+        s.x += s.vx * dt * 60; s.y += s.vy * dt * 60;
+        if (Math.abs(s.vx) > .05) s.dir = Math.sign(s.vx);
+        continue;
+      }
+      let ax = (s.vx < .1 ? .004 : 0), ay = Math.sin(performance.now() / 1600 + s.seed) * .004;
+      for (const o of sheep) {
+        if (o === s) continue;
+        const dx = s.x - o.x, dy = s.y - o.y, d = Math.hypot(dx, dy), m = (s.r + o.r) * 1.6;
+        if (d < m && d > 0) { ax += dx / d * (m - d) * .004; ay += dy / d * (m - d) * .004; }
+      }
+      if (mouse.on) {
+        const dx = s.x - mouse.x, dy = s.y - mouse.y, d = Math.hypot(dx, dy);
+        if (d < 170) { const f = (170 - d) / 170; ax += dx / d * f * .4; ay += dy / d * f * .4; }
+      }
+      if (s.y < 100) ay += .03; if (s.y > H - 40) ay -= .03;
+      s.vx = (s.vx + ax) * .985; s.vy = (s.vy + ay) * .95;
+      const sp = Math.hypot(s.vx, s.vy); if (sp > 3) { s.vx *= 3 / sp; s.vy *= 3 / sp; }
+      s.x += s.vx * dt * 60; s.y += s.vy * dt * 60;
+      if (Math.abs(s.vx) > .08) s.dir = Math.sign(s.vx);
+      if (s.x > W + 60) { s.x = -60; s.y = rnd(110, H - 60); }
+      if (s.x < -80) s.x = W + 50;
+    }
+  }
+  // seen from the side: a cloud of wool, a dark face, four little legs
+  function drawSheep(s, t) {
+    const { x, y, r } = s, sp = Math.min(1, Math.hypot(s.vx, s.vy));
+    const bob = Math.sin(t * 1.4 + s.seed) * r * .06;
+    ctx.save(); ctx.translate(x, y + bob); ctx.scale(s.dir, 1);
+    const swing = Math.sin(t * 8 + s.seed) * sp * r * .12;
+    ctx.strokeStyle = "#2B2A34"; ctx.lineWidth = r * .16; ctx.lineCap = "round";
+    for (const [lx, k] of [[-.55, 1], [-.25, -1], [.25, 1], [.55, -1]]) { ctx.beginPath(); ctx.moveTo(lx * r, r * .45); ctx.lineTo(lx * r + swing * k, r * .95); ctx.stroke(); }
+    const wool = ctx.createRadialGradient(-r * .3, -r * .5, r * .1, 0, 0, r * 1.6);
+    wool.addColorStop(0, "#FFFFFF"); wool.addColorStop(1, "#AFC0D8");
+    ctx.fillStyle = wool;
+    ctx.beginPath();
+    for (const [cx, cy, cr] of [[-.75, .1, .45], [-.35, -.3, .55], [.15, -.42, .58], [.6, -.18, .5], [.7, .2, .42], [.2, .25, .55], [-.3, .3, .5]]) { ctx.moveTo((cx + cr) * r, cy * r); ctx.arc(cx * r, cy * r, cr * r, 0, 7); }
+    ctx.fill();
+    ctx.fillStyle = "#2B2A34";
+    ctx.beginPath(); ctx.ellipse(r * 1.12, r * -.02, r * .36, r * .28, .25, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r * .9, r * -.22, r * .2, r * .08, -.6, 0, 7); ctx.fill();
+    ctx.fillStyle = "#EAF0F8"; ctx.beginPath(); ctx.arc(r * 1.2, r * -.08, r * .06, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function frame(now) {
+    const t = now / 1000, dt = Math.min(.05, (now - (frame.last || now)) / 1000); frame.last = now;
+    if (!reduced) step(dt);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(bg, 0, 0, W, H);
+    if (mouse.on && !reduced) {
+      const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 190);
+      g.addColorStop(0, "rgba(124,203,245,.12)"); g.addColorStop(1, "rgba(124,203,245,0)");
+      ctx.fillStyle = g; ctx.fillRect(mouse.x - 190, mouse.y - 190, 380, 380);
+    }
+    for (const s of sheep) drawSheep(s, t);
+    if (stuck) {
+      const col = fin > 0 ? "34,197,94" : "124,203,245", p = (t * .7) % 1, R = stuck.r * 1.5;
+      ctx.strokeStyle = `rgba(${col},${.8 * (1 - p)})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(stuck.x, stuck.y, R + p * 26, 0, 7); ctx.stroke();
+      ctx.strokeStyle = `rgba(${col},.9)`; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(stuck.x, stuck.y, R, 0, 7); ctx.stroke();
+      if (label) {
+        ctx.font = "500 12px JetBrains Mono, monospace";
+        const txt = fin > 0 ? `${label} · exit 0` : `${label} running`, tw = ctx.measureText(txt).width;
+        const lx = Math.min(Math.max(stuck.x - tw / 2 - 9, 8), W - tw - 26), ly = stuck.y - R - 38;
+        ctx.fillStyle = "rgba(11,20,34,.85)"; ctx.strokeStyle = `rgba(${col},.5)`; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(lx, ly, tw + 18, 24, 12); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = fin > 0 ? "#86EFAC" : "#B8E4FF"; ctx.fillText(txt, lx + 9, ly + 16);
+      }
+    }
+    if (!reduced || !frame.drawn) { frame.drawn = true; requestAnimationFrame(frame); }
+  }
+  resize(); addEventListener("resize", resize);
+  requestAnimationFrame(frame);
+  return {
+    stick(name) {
+      label = name; fin = 0;
+      const cr = cv.getBoundingClientRect();
+      const box = (el, l, t, r, b) => { const q = el.getBoundingClientRect(); return [q.left - cr.left - l, q.top - cr.top - t, q.right - cr.left + r, q.bottom - cr.top + b]; };
+      const text = box($(".hero .wrap > div"), 0, 60, 40, 30); text[0] = 0;
+      const avoid = [box($("#heroWin"), 50, 70, 40, 30), text, [0, 0, W, 120]];
+      const free = [];
+      for (let x = 80; x < W - 80; x += 30) for (let y = 140; y < H - 40; y += 30) if (!avoid.some(([l, t, r, b]) => x > l && x < r && y > t && y < b)) free.push([x, y]);
+      const narrow = W < 900;
+      if (narrow) label = "";
+      const [tx, ty] = free.length && !narrow ? free[Math.floor(Math.random() * free.length)] : [W * .5, Math.max(140, $("#heroWin").getBoundingClientRect().top - cr.top - 50)];
+      stuck = sheep.reduce((a, b) => (Math.hypot(b.x - tx, b.y - ty) < Math.hypot(a.x - tx, a.y - ty) ? b : a));
+      stuck.tx = tx; stuck.ty = ty;
+    },
+    async finish() { fin = 1; await sleep(1600); if (stuck) stuck.vx = .6; stuck = null; fin = 0; },
+  };
+})();
+
+/* ---------- session ---------- */
+const sess = pane($("#sess"), 34);
+const sessVis = whenVisible($("#sess"), null, .3);
+const P = [["c-p", "$"], ["", " "]];
+async function out(lines, gap = 70) { for (const l of lines) { await waitFor(sessVis); sess.add(l); await sleep(gap); } }
+async function sessLoop() {
+  for (;;) {
+    sess.clear();
+    await waitFor(sessVis);
+    await sess.type(P, "cloudsheep ls");
+    await out([[["", "devbox  ssh         ubuntu@devbox.example.com"]], [["", "heavy   gcp-worker  bundle-agent-6b1f (us-central1-b, created)"]], [["", "lima    command     default"]], []]);
+    await sess.type(P, "cloudsheep sync devbox");
+    await out([[["", "machine: devbox"]], [["", "repo: /Users/you/src/flock"]], [["", "base: 8c19d9a7c12af39b70d8c1496f35939cadd6240a"]], [["", "dirty: True"]], [["", "workdir: ~/src/flock"]], [["", "files: 184"]], [["", "skipped_secret_like:"]], [["c-a", "  - .env"]], []]);
+    await sess.type(P, "cloudsheep job devbox --job build -- make -j16");
+    await out([[["", "machine: devbox"]], [["", "job: build"]], [["", "state: submitted"]], []]);
+    await sleep(500);
+    await sess.type(P, "cloudsheep logs devbox build --follow");
+    await out([[["", "[ 92%] Linking CXX executable flock"]], [["", "[100%] Built target flock"]], [["c-d", "cloudsheep: job build completed (exit 0)"]], []], 380);
+    await sess.type(P, "cloudsheep collect devbox");
+    await out([[["", "machine: devbox"]], [["", "changed: True"]], [["c-g", "branch: cloudsheep/devbox-20261005-141203"]], [["", "stat:"]], [["", "   src/solver.py | 14 "], ["c-g", "++++++++"], ["c-r", "---"]], [["", "   1 file changed, 9 insertions(+), 5 deletions(-)"]], []]);
+    sess.add(P);
+    await sleep(6000);
+  }
+}
+
+/* ---------- providers ---------- */
+const CAPS = ["status", "shell", "run", "tunnel", "sync", "collect", "jobs", "up", "down", "extend", "ssh-config", "native"];
+const PROV = {
+  ssh: { name: "devbox", lit: ["status", "shell", "run", "tunnel", "sync", "collect", "jobs", "ssh-config"], hook: ["up", "down", "extend"],
+    cfg: `<span class="h">[machines.devbox]</span>\n<span class="k">provider</span> = <span class="s">"ssh"</span>\n<span class="k">host</span> = <span class="s">"devbox.example.com"</span>\n<span class="k">user</span> = <span class="s">"ubuntu"</span>\n<span class="k">workdir</span> = <span class="s">"~/src/flock"</span>\n<span class="k">ports</span> = { app = 3000 }\n<span class="cm"># optional, run locally:</span>\n<span class="k">up</span> = <span class="s">"gcloud compute instances start devbox"</span>`,
+    cap: "<b>Anything you can ssh into.</b> rsync carries sync and collect, jobs live under <code>~/.cloudsheep/jobs</code>, and starting or stopping it is a command you write." },
+  command: { name: "lima", lit: ["status", "shell", "run", "up", "down"], hook: [],
+    cfg: `<span class="h">[machines.lima]</span>\n<span class="k">provider</span> = <span class="s">"command"</span>\n<span class="k">instance</span> = <span class="s">"default"</span>\n<span class="k">status</span> = <span class="s">"limactl list {instance} --json"</span>\n<span class="k">shell</span> = <span class="s">"limactl shell {instance}"</span>\n<span class="k">run</span> = <span class="s">"limactl shell {instance} -- {cmd}"</span>\n<span class="k">up</span> = <span class="s">"limactl start {instance}"</span>\n<span class="k">down</span> = <span class="s">"limactl stop {instance}"</span>`,
+    cap: "<b>Your VM tool's own CLI.</b> One shell template per operation, values quoted for you. Write a template and the operation exists; leave it out and it doesn't." },
+  gcp: { name: "heavy", lit: CAPS, hook: [],
+    cfg: `<span class="h">[providers.gcp-worker]</span>\n<span class="k">kit</span> = <span class="s">"~/Work/bundle/scripts/gcp-worker"</span>\n<span class="k">repo</span> = <span class="s">"~/Work/bundle"</span>\n\n<span class="h">[machines.heavy]</span>\n<span class="k">provider</span> = <span class="s">"gcp-worker"</span>\n<span class="k">task</span> = <span class="s">"heavy"</span>\n<span class="k">create</span> = { lease = <span class="s">"1h"</span>, ttl = <span class="s">"4h"</span> }`,
+    cap: "<b>bundle's disposable GCP workers.</b> agent.py stays in charge of leases, identity checks and deletion. cloudsheep adds shells and tunnels over IAP, and every lease shows up on its own." },
+};
+$("#caps").innerHTML = CAPS.map((c) => `<span class="cap" data-c="${c}">${c}</span>`).join("");
+let provAuto = true, provIdx = 0;
+async function showProv(key) {
+  const p = PROV[key];
+  $$("#seg button").forEach((b) => { const on = b.dataset.p === key; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+  const cfg = $("#cfg"), cap = $("#capCap");
+  cfg.style.opacity = 0; cap.style.opacity = 0;
+  $$(".cap").forEach((c) => c.classList.remove("lit", "hook"));
+  await sleep(220);
+  cfg.innerHTML = p.cfg; cfg.style.opacity = 1; $("#capName").textContent = p.name;
+  for (const c of CAPS) {
+    const el = $(`.cap[data-c="${c}"]`);
+    if (p.lit.includes(c)) { el.classList.add("lit"); await sleep(60); } else if (p.hook.includes(c)) { el.classList.add("hook"); await sleep(60); }
+  }
+  cap.innerHTML = p.cap; cap.style.opacity = 1;
+}
+$$("#seg button").forEach((b) => b.addEventListener("click", () => { provAuto = false; showProv(b.dataset.p); }));
+let provStarted = false;
+whenVisible($("#caps"), async (v) => {
+  if (!v || provStarted) return;
+  provStarted = true;
+  const keys = Object.keys(PROV);
+  while (provAuto) {
+    await showProv(keys[provIdx]);
+    await sleep(4600);
+    if (!provAuto) break;
+    provIdx = (provIdx + 1) % keys.length;
+  }
+}, .4);
+
+/* ---------- plan ---------- */
+const planEl = $("#plan"), planVis = whenVisible(planEl, null, .3);
+async function typeInto(el, txt) {
+  const sp = document.createElement("span"); el.append(sp);
+  const c = document.createElement("span"); c.className = "caret"; el.append(c);
+  for (const ch of txt) { sp.textContent += ch; await sleep(22 + Math.random() * 40); }
+  await sleep(380); c.remove();
+}
+const put = (el, html) => { const s = document.createElement("span"); s.innerHTML = html; el.append(s); };
+async function planLoop() {
+  for (;;) {
+    planEl.textContent = "";
+    await waitFor(planVis);
+    put(planEl, '<span class="p">$</span> '); await typeInto(planEl, "cloudsheep down heavy");
+    await sleep(600);
+    put(planEl, '\nmachine: heavy\naction: down\napplied: False\neffect: <span class="w">collects into a new branch, then DELETES the VM</span>\nwould_run: python3 -B …/agent.py release --task heavy --repo /Users/you/Work/bundle\n\n<span class="k">nothing done; rerun with --yes to apply</span>\n\n');
+    await sleep(2600);
+    put(planEl, '<span class="p">$</span> '); await typeInto(planEl, "cloudsheep down heavy --yes");
+    await sleep(1400);
+    put(planEl, '\nmachine: heavy\naction: down\napplied: True\neffect: collects into a new branch, then DELETES the VM\nok: True\ntask: heavy\n<span class="g">deleted: True</span>\n<span class="g">branch: codex/worker/heavy-3f2a91c0</span>\n\n<span class="p">$</span> ');
+    const c = document.createElement("span"); c.className = "caret"; planEl.append(c);
+    await sleep(7000);
+  }
+}
+
+/* ---------- herdr picker ---------- */
+const hw = $("#herdrWin"), hVis = whenVisible(hw, null, .35);
+const hMain = pane($("#hMain")), hSide = pane($("#hSide")), hLogs = pane($("#hLogs"), 20);
+const MACHINES = [["devbox", "ssh", "ubuntu@devbox.example.com"], ["heavy", "gcp-worker", "bundle-agent-6b1f (us-central1-b)"], ["lima", "command", "default"]];
+const ACTIONS = [["shell", "open a shell in a new tab"], ["status", "state, lease and jobs"], ["logs", "follow a job in a split"], ["job", "start a detached job"], ["tunnel", "forward a port in a split"], ["sync", "send bundle to the machine"], ["collect", "bring changes back as a new branch"], ["down", "stop / release"]];
+function opts(rows, sel) { $("#popO").innerHTML = rows.map(([a, b], i) => `<div class="o${i === sel ? " sel" : ""}" data-n="${a}"><b>${esc(a)}</b><span>${esc(b)}</span></div>`).join(""); }
+async function herdrLoop() {
+  for (;;) {
+    hw.classList.remove("logs-open"); $("#hToast").classList.remove("on"); hMain.clear(); hSide.clear(); hLogs.clear();
+    hMain.add([["c-c", "π"], ["", " sync bundle to heavy and run the build there"]]);
+    hMain.add([["c-d", "  ✓ cloudsheep sync heavy"]]);
+    hMain.add([["c-d", "  ✓ cloudsheep job heavy --job build -- make -j32"]]);
+    hMain.add([["", "  Submitted. I'll check the logs when it's done."]]);
+    hSide.add([["c-p", "❯"], ["", " git log --oneline -3"]]);
+    hSide.add([["c-d", "d84a6e0 Merge pull request #94"]]);
+    hSide.add([["c-p", "❯"], ["", " "]]);
+    await waitFor(hVis); await sleep(1400);
+    const popup = $("#popup"), f = $("#popF");
+    $("#popQ").firstChild.textContent = "🐑 machine › "; f.textContent = "";
+    opts(MACHINES.map(([n, p, d]) => [n, `${p.padEnd(10)}  ${d}`]), 0);
+    popup.classList.add("on");
+    await sleep(900);
+    for (const ch of "he") { f.textContent += ch; await sleep(240); }
+    $$("#popO .o").forEach((o) => o.classList.toggle("hide", !o.dataset.n.includes(f.textContent)));
+    $$("#popO .o").forEach((o) => o.classList.toggle("sel", o.dataset.n === "heavy"));
+    await sleep(900);
+    $("#popQ").firstChild.textContent = "🐑 heavy › "; f.textContent = "";
+    opts(ACTIONS, 0);
+    await sleep(700);
+    for (let i = 1; i <= 2; i++) { $$("#popO .o").forEach((o, k) => o.classList.toggle("sel", k === i)); await sleep(380); }
+    await sleep(600);
+    popup.classList.remove("on");
+    await sleep(350);
+    hw.classList.add("logs-open");
+    hLogs.add([["c-d", "$ cloudsheep logs heavy build --follow"]]);
+    for (const l of ["[ 88%] Building CXX object app/CMakeFiles/app.dir/render.cpp.o", "[ 94%] Linking CXX executable app", "[100%] Built target app"]) { await sleep(700); hLogs.add([["", l]]); }
+    hLogs.add([["c-d", "cloudsheep: job build completed (exit 0)"]]);
+    await sleep(400);
+    $("#hToast").classList.add("on");
+    await sleep(5200);
+  }
+}
+
+/* ---------- Shepherd phone ---------- */
+const phone = $("#phone"), phVis = whenVisible(phone, null, .4), finger = $("#finger");
+async function tapOn(el) {
+  const scr = $("#phone .screen").getBoundingClientRect(), r = el.getBoundingClientRect();
+  finger.style.transition = "none"; finger.style.left = `${scr.width * .7}px`; finger.style.top = `${scr.height + 30}px`; finger.offsetWidth; finger.style.transition = "";
+  finger.classList.add("on");
+  finger.style.left = `${r.left - scr.left + r.width / 2}px`; finger.style.top = `${r.top - scr.top + r.height / 2}px`;
+  await sleep(950);
+  finger.classList.add("tap"); el.classList.add("tap");
+  await sleep(180);
+  finger.classList.remove("tap"); el.classList.remove("tap");
+  await sleep(250); finger.classList.remove("on");
+}
+async function phoneLoop() {
+  for (;;) {
+    $("#sheet").classList.remove("on");
+    $("#mHeavyP").className = "pill run"; $("#mHeavyP").textContent = "RUNNING"; $("#mHeavyS").textContent = "gcp-worker · lease 52m"; $("#mActs").style.display = ""; $("#phSum").textContent = "3 machines · 1 running";
+    await waitFor(phVis); await sleep(1600);
+    await tapOn($("#mStop"));
+    $("#sheet").classList.add("on");
+    await sleep(1800);
+    await tapOn($("#sDo"));
+    $("#sheet").classList.remove("on");
+    $("#mHeavyP").className = "pill"; $("#mHeavyP").textContent = "releasing…";
+    await sleep(1800);
+    $("#mHeavyP").className = "pill gone"; $("#mHeavyP").textContent = "deleted"; $("#mHeavyS").textContent = "collected · codex/worker/heavy-3f2a"; $("#mActs").style.display = "none"; $("#phSum").textContent = "3 machines · 0 running";
+    await sleep(5000);
+  }
+}
+
+/* ---------- setup shell ---------- */
+const setup = $("#setup");
+let setupStarted = false;
+whenVisible(setup, async (v) => {
+  if (!v || setupStarted) return;
+  setupStarted = true;
+  put(setup, '<span class="p">$</span> '); await typeInto(setup, "ln -s ~/Work/cloudsheep/bin/cloudsheep ~/.local/bin/");
+  put(setup, "\n"); await sleep(300);
+  put(setup, '<span class="p">$</span> '); await typeInto(setup, "cloudsheep init");
+  put(setup, "\nwrote /Users/you/.config/cloudsheep/machines.toml; edit it to add your machines\n"); await sleep(500);
+  put(setup, '<span class="p">$</span> '); await typeInto(setup, "cloudsheep ls");
+  put(setup, "\ndevbox  ssh         ubuntu@devbox.example.com\nlima    command     default\n"); await sleep(500);
+  put(setup, '<span class="p">$</span> '); await typeInto(setup, "cloudsheep caps devbox");
+  put(setup, "\ncollect\njobs\nrun\nshell\nssh_config\nstatus\nsync\ntunnel\n"); await sleep(500);
+  put(setup, '<span class="p">$</span> '); await typeInto(setup, "cloudsheep shell devbox");
+  put(setup, '\n<span class="p">ubuntu@devbox</span>:~/src/flock$ ');
+  const c = document.createElement("span"); c.className = "caret"; setup.append(c);
+}, .3);
+
+$$("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(b.previousElementSibling.textContent); b.textContent = "copied"; } catch { b.textContent = "select it"; }
+  setTimeout(() => (b.textContent = "copy"), 1600);
+}));
+
+/* ---------- the footer sheep keeps an eye on you ---------- */
+const peek = $("#peek"), pl = $("#pl"), pr = $("#pr");
+addEventListener("pointermove", (e) => {
+  const r = peek.getBoundingClientRect();
+  if (r.top > innerHeight + 200) return;
+  const cx = r.left + r.width * .5, cy = r.top + r.height * .72;
+  let dx = e.clientX - cx, dy = e.clientY - cy;
+  const a = 14 * Math.PI / 180, rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a);
+  const d = Math.hypot(rx, ry) || 1, k = Math.min(9, d / 30);
+  pl.setAttribute("cx", 298 + rx / d * k - 4); pl.setAttribute("cy", 704 + ry / d * k + 8);
+  pr.setAttribute("cx", 372 + rx / d * k - 4); pr.setAttribute("cy", 704 + ry / d * k + 8);
+}, { passive: true });
+if (!reduced) (async () => { for (;;) { await sleep(2500 + Math.random() * 4000); $$("#peek .lid").forEach((l) => (l.style.transform = "scaleY(.1)")); await sleep(120); $$("#peek .lid").forEach((l) => (l.style.transform = "")); } })();
+
+/* ---------- go ---------- */
+startRun(0, true);
+requestAnimationFrame((t) => { lastTick = t; tick(t); });
+sessLoop(); planLoop(); herdrLoop(); phoneLoop();
 })();
 </script>
 </body>
