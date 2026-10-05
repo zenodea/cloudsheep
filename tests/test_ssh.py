@@ -2,6 +2,7 @@ import os
 import subprocess
 import time
 import unittest
+from pathlib import Path
 
 from cloudsheep import config
 from cloudsheep.core import CloudsheepError
@@ -100,6 +101,28 @@ class SshProviderTest(Sandbox):
         self.assertEqual(self.git(repo, 'log', '-1', '--format=%ae', 'cloudsheep/test').strip(), 'test@example.com')
         with self.assertRaises(CloudsheepError):
             self.box.collect(repo, 'cloudsheep/test', [])
+
+    def test_collect_with_gitignore_negation_still_sees_changes(self):
+        repo = self.make_repo()
+        (repo / '.gitignore').write_text('*\n!.gitignore\n!app.py\n')
+        self.git(repo, 'add', '-A')
+        self.git(repo, 'commit', '-q', '-m', 'allowlist ignore')
+        self.box.sync(repo, [])
+        (self.remote_home / 'src' / 'proj' / 'app.py').write_text('print("remote")\n')
+        collected = self.box.collect(repo, 'cloudsheep/neg', [])
+        self.assertTrue(collected['changed'])
+        self.assertEqual(self.git(repo, 'show', 'cloudsheep/neg:app.py'), 'print("remote")\n')
+
+    def test_collect_ignores_global_hooks_and_signing(self):
+        repo = self.make_repo()
+        hooks = self.tmp / 'hooks'
+        hooks.mkdir()
+        (hooks / 'pre-commit').write_text('#!/bin/sh\nexit 1\n')
+        (hooks / 'pre-commit').chmod(0o755)
+        Path(os.environ['GIT_CONFIG_GLOBAL']).write_text(f'[core]\n\thooksPath = {hooks}\n[commit]\n\tgpgsign = true\n')
+        self.box.sync(repo, [])
+        (self.remote_home / 'src' / 'proj' / 'new.py').write_text('x\n')
+        self.assertTrue(self.box.collect(repo, None, [])['changed'])
 
     def test_collect_without_sync_refuses(self):
         repo = self.make_repo()

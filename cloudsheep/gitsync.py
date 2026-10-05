@@ -112,11 +112,12 @@ def collect(machine: str, repo: Path, branch: str | None, rsh: list[str], target
         run(['git', 'clone', '-q', '--no-checkout', '--shared', str(repo), str(clone)])
         git(clone, 'checkout', '-q', '--detach', base)
         # Skip root-.gitignore'd output (node_modules, target, ...) during transfer; `git add -A` below
-        # applies the full ignore rules anyway. Negations are dropped: rsync reads `!` as "clear all".
+        # applies the full ignore rules anyway. rsync cannot express `!` re-includes, so a .gitignore
+        # with negations is not used for transfer at all (slower, never misses a change).
+        lines = [line.strip() for line in git(repo, 'show', base + ':.gitignore', check=False).stdout.splitlines()]
+        rules = [line for line in lines if line and not line.startswith('#')]
         ignore = Path(temporary) / 'ignore'
-        rules = git(repo, 'show', base + ':.gitignore', check=False).stdout.splitlines()
-        ignore.write_text(''.join(line.strip() + '\n' for line in rules
-                                  if line.strip() and not line.lstrip().startswith(('#', '!'))))
+        ignore.write_text('' if any(r.startswith('!') for r in rules) else ''.join(r + '\n' for r in rules))
         run(['rsync', '-a', '--delete', '--exclude=.git', *rsync_filters(patterns), f'--exclude-from={ignore}',
              '-e', shlex.join(rsh), f'{target}:{workdir.rstrip("/")}/', str(clone) + '/'])
         git(clone, 'add', '-A')
@@ -126,7 +127,7 @@ def collect(machine: str, repo: Path, branch: str | None, rsh: list[str], target
         name = git(repo, 'config', 'user.name', check=False).stdout.strip() or 'cloudsheep'
         email = git(repo, 'config', 'user.email', check=False).stdout.strip() or 'cloudsheep@localhost'
         identity = ['-c', f'user.name={name}', '-c', f'user.email={email}']
-        run(['git', '-C', str(clone), *identity, 'commit', '-q', '-m', f'Collect {machine} from {workdir}'])
+        run(['git', '-C', str(clone), *identity, '-c', 'commit.gpgsign=false', 'commit', '-q', '--no-verify', '-m', f'Collect {machine} from {workdir}'])
         stat = git(clone, 'diff', '--stat', base, 'HEAD').stdout.strip()
         git(repo, 'fetch', '-q', str(clone), 'HEAD:refs/heads/' + branch)
     commit = git(repo, 'rev-parse', branch).stdout.strip()
