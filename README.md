@@ -99,7 +99,7 @@ Every data command takes `--json`. Errors are `{"ok": false, "error": "..."}` wi
 | `job/cancel/sync/collect NAME --json` | the provider's result |
 | `open NAME [-- ACTION]` | `{pane_id, command}` of the herdr pane it created |
 
-Job states are `submitted`, `running`, `completed`, `cancelled`, `interrupted` or `unknown`.
+Job states are `submitted`, `running`, `completed`, `cancelled`, `interrupted`, `missing` (ssh) or `unknown`.
 
 ## Tests
 
