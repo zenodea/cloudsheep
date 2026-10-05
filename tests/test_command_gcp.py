@@ -168,6 +168,21 @@ class GcpWorkerTest(Sandbox):
         self.assertEqual([c[0] for c in self.calls()], ['acquire'] * 3)
         self.assertEqual(heavy.status()['state'], 'RUNNING')
 
+    def test_up_stops_waiting_when_startup_failed(self):
+        from cloudsheep.providers import gcp_worker
+        self.lease('heavy', helper_installed=False)
+        self.config(self.provider)
+        counter = self.tmp / 'not-ready'
+        counter.write_text('5')
+        os.environ.update({'FAKE_AGENT_NOT_READY': str(counter), 'FAKE_LEASES': str(self.leases), 'FAKE_GCLOUD_SSH': 'failed'})
+        saved, gcp_worker.STARTUP_POLL = gcp_worker.STARTUP_POLL, 0
+        try:
+            with self.assertRaisesRegex(CloudsheepError, 'bundle-worker service failed'):
+                config.machine('heavy').up(apply=True)
+        finally:
+            gcp_worker.STARTUP_POLL = saved
+        self.assertEqual(len(self.calls()), 1)
+
     def test_failed_acquire_explains_the_pending_lease(self):
         self.lease('heavy', instance_id=None)
         os.environ['FAKE_AGENT_REFUSE'] = '1'

@@ -253,6 +253,12 @@ class GcpWorkerMachine(Machine):
                     # The VM exists and acquire is resumable: wait out the startup script.
                     if not self.starting(self.lease()) or time.monotonic() > deadline:
                         raise
+                    if self.startup_failed():
+                        raise CloudsheepError(
+                            f'{error}\n{self.name}: the VM\'s bundle-worker service failed, so it will never become '
+                            f'ready. Look with `cloudsheep shell {self.name} --self`, then `sudo journalctl -u '
+                            f'bundle-worker` and `sudo tail /run/bundle-worker/app.log`; `cloudsheep down '
+                            f'{self.name} --yes` deletes it.') from None
                     print(f'cloudsheep: {self.name} is starting up ({error}); retrying in {STARTUP_POLL}s',
                           file=sys.stderr, flush=True)
                     time.sleep(STARTUP_POLL)
@@ -270,6 +276,15 @@ class GcpWorkerMachine(Machine):
         if self.pending(lease):
             return False
         return explicit or bool(lease and not lease.get('released') and not lease.get('adopted'))
+
+    def startup_failed(self) -> bool:
+        """True only when the VM positively reports its bundle-worker service as failed."""
+        try:
+            result = run([*self.gcloud_ssh(), '--ssh-flag=-oBatchMode=yes', '--ssh-flag=-T',
+                          '--command=systemctl is-failed bundle-worker'], check=False, timeout=90, input='')
+        except CloudsheepError:
+            return False
+        return result.stdout.strip().splitlines()[-1:] == ['failed']
 
     def vm_exists(self, lease) -> bool:
         config = lease['config']

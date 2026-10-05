@@ -1,6 +1,7 @@
 #!/bin/sh
-# Fake gcloud: logs argv; `compute instances list` prints $FAKE_GCLOUD_INSTANCES.
+# Fake gcloud: logs argv; `compute instances list` prints $FAKE_GCLOUD_INSTANCES, `compute ssh` $FAKE_GCLOUD_SSH.
 [ -n "$FAKE_GCLOUD_LOG" ] && printf '%s\n' "$*" >> "$FAKE_GCLOUD_LOG"
 case "$*" in
   "compute instances list"*) printf '%s\n' ${FAKE_GCLOUD_INSTANCES:-} ;;
+  "compute ssh"*) [ -n "${FAKE_GCLOUD_SSH:-}" ] && printf '%s\n' "$FAKE_GCLOUD_SSH" ;;
 esac
