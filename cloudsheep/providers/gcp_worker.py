@@ -10,19 +10,28 @@ their task. Configure a machine explicitly to acquire a new one:
     task = "heavy"
     existing_name = "bundle-image-test-02"     # adopt, or:
     # create = { lease = "1h", ttl = "4h" }    # billable creation
+    # zone = "us-central1-a"                   # override the kit config's zone
+
+`zone` (here or in [providers.gcp-worker]) applies to new leases only and must
+stay in the region of the config's subnet. Once a lease exists, every agent.py
+call uses the lease's own config, as agent.py requires.
 """
 from __future__ import annotations
 
+import fcntl
+import hashlib
 import json
 import re
 import shlex
+from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core import CloudsheepError, Machine, run_json
+from ..core import CloudsheepError, Machine, run, run_json, state_dir
 
 TASK = re.compile(r'[a-z0-9][a-z0-9-]{0,47}')
 REMOTE_ROOT = '/home/agent/.local/share/bundle-worker-agent/tasks'
 LEASE_STATE = '~/.local/state/bundle-worker-agent'
+ZONE = re.compile(r'[a-z]+-[a-z]+[0-9]+-[a-z]')
 
 
 def lease_dir(provider_settings: dict) -> Path:
@@ -63,20 +72,61 @@ class GcpWorkerMachine(Machine):
             raise CloudsheepError(f'{path}/agent.py not found; check the gcp-worker kit path')
         return path
 
+    def setting(self, key):
+        return self.settings.get(key) or self.provider_settings.get(key)
+
+    def agent_config(self) -> Path | None:
+        """The --config for agent.py: the lease's own config once there is one, else the
+        configured file (or the kit default) with `zone` applied."""
+        lease = self.lease()
+        if lease and not lease.get('released') and isinstance(lease.get('config'), dict):
+            config = lease['config']
+        else:
+            base = self.setting('config')
+            zone = self.setting('zone')
+            if not zone:
+                return Path(base).expanduser() if base else None
+            if not ZONE.fullmatch(str(zone)):
+                raise CloudsheepError(f'{self.name}: invalid zone {zone!r}')
+            path = Path(base).expanduser() if base else self.kit() / 'config.example.json'
+            try:
+                config = {**json.loads(path.read_text()), 'zone': zone}
+            except (OSError, ValueError) as error:
+                raise CloudsheepError(f'cannot read gcp-worker config {path}: {error}') from None
+        text = json.dumps(config, indent=2, sort_keys=True) + '\n'
+        folder = state_dir() / 'gcp-worker'
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"config-{hashlib.sha256(text.encode()).hexdigest()[:12]}.json"
+        if not path.exists() or path.read_text() != text:
+            path.write_text(text)
+        return path
+
     def agent(self, action: str, *args: str, dry_run: bool = False) -> list[str]:
         argv = [self.provider_settings.get('python', 'python3'), '-B', str(self.kit() / 'agent.py'), action]
-        config = self.settings.get('config') or self.provider_settings.get('config')
+        config = self.agent_config()
         if config:
-            argv += ['--config', str(Path(config).expanduser())]
+            argv += ['--config', str(config)]
         if dry_run:
             argv.append('--dry-run')
         return [*argv, '--task', self.task, *args]
 
+    def lease_path(self) -> Path:
+        return lease_dir(self.provider_settings) / f'lease-{self.task}.json'
+
     def lease(self) -> dict | None:
-        path = lease_dir(self.provider_settings) / f'lease-{self.task}.json'
+        path = self.lease_path()
         if not path.exists():
             return None
         return json.loads(path.read_text())
+
+    @staticmethod
+    def pending(lease) -> bool:
+        """acquire started (the reservation is saved) but never bound a VM, e.g. no GPU capacity."""
+        return bool(lease and not lease.get('released') and not lease.get('instance_id'))
+
+    def pending_hint(self) -> str:
+        return (f'acquire did not finish; `cloudsheep up {self.name} --yes` retries it, '
+                f'`cloudsheep down {self.name} --yes` drops it if no VM was created')
 
     def bound_lease(self) -> dict:
         lease = self.lease()
@@ -89,7 +139,7 @@ class GcpWorkerMachine(Machine):
     def describe(self):
         lease = self.lease()
         if lease and not lease.get('released'):
-            kind = 'adopted' if lease.get('adopted') else 'created'
+            kind = 'pending' if self.pending(lease) else 'adopted' if lease.get('adopted') else 'created'
             return f"{lease['name']} ({lease['config']['zone']}, {kind})"
         return self.settings.get('description', f'task {self.task} (no lease)')
 
@@ -115,6 +165,9 @@ class GcpWorkerMachine(Machine):
         lease = self.lease()
         if not lease or lease.get('released'):
             return {'machine': self.name, 'task': self.task, 'state': 'absent' if not lease else 'released'}
+        if self.pending(lease):
+            return {'machine': self.name, 'task': self.task, 'state': 'pending', 'vm': lease['name'],
+                    'zone': lease['config']['zone'], 'hint': self.pending_hint()}
         value = run_json(self.agent('status'), timeout=120)
         return {'machine': self.name, 'task': self.task, 'state': value.get('vm_status', 'unknown'),
                 'vm': lease['name'], 'zone': lease['config']['zone'], 'adopted': bool(lease.get('adopted')),
@@ -176,14 +229,52 @@ class GcpWorkerMachine(Machine):
             plan = run_json(self.agent('acquire', *args, dry_run=True))
             return {'machine': self.name, 'action': 'up', 'applied': False, 'billable_creation': create,
                     'would_run': shlex.join(self.agent('acquire', *args)), 'plan': plan.get('arguments')}
-        return {'machine': self.name, 'action': 'up', 'applied': True, **run_json(self.agent('acquire', *args), timeout=1800)}
+        try:
+            value = run_json(self.agent('acquire', *args), timeout=1800)
+        except CloudsheepError as error:
+            if self.pending(self.lease()):
+                raise CloudsheepError(f'{error}\n{self.name}: {self.pending_hint()}. agent.py hides the failing '
+                                      'command\'s output; GPU capacity in the zone is a common cause '
+                                      '(set zone = "..." for a new lease).') from None
+            raise
+        return {'machine': self.name, 'action': 'up', 'applied': True, **value}
 
     def down_wants_repo(self, explicit):
         # Created workers must be collected before deletion; adopted ones only when asked.
         lease = self.lease()
+        if self.pending(lease):
+            return False
         return explicit or bool(lease and not lease.get('released') and not lease.get('adopted'))
 
+    def vm_exists(self, lease) -> bool:
+        config = lease['config']
+        names = run(['gcloud', 'compute', 'instances', 'list', f"--project={config['project']}",
+                     f"--filter=name=({lease['name']})", '--format=value(name)'], timeout=120).stdout.split()
+        return lease['name'] in names
+
+    def forget_pending(self, apply):
+        """Drop a reservation that never bound a VM; agent.py has no command for this."""
+        lease = self.lease()
+        if self.vm_exists(lease):
+            raise CloudsheepError(f"{self.name}: acquire did not finish but VM {lease['name']} exists; "
+                                  f'resume with `cloudsheep up {self.name} --yes`')
+        path = self.lease_path()
+        effect = f"no VM {lease['name']} exists; forgets the unfinished lease (nothing to collect or delete)"
+        plan = {'machine': self.name, 'action': 'down', 'applied': apply, 'effect': effect,
+                'would_run': f'mv {path} {path.name}.abandoned-<time>'}
+        if not apply:
+            return plan
+        with (path.parent / 'fleet.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if not self.pending(self.lease()):
+                raise CloudsheepError(f'{self.name}: the lease changed meanwhile; check `cloudsheep status {self.name}`')
+            stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+            path.rename(path.with_name(f'{path.name}.abandoned-{stamp}'))
+        return plan
+
     def down(self, apply, repo=None, branch=None):
+        if self.pending(self.lease()):
+            return self.forget_pending(apply)
         lease = self.bound_lease()
         args = []
         if repo is not None:

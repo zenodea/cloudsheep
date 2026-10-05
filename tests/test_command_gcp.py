@@ -22,6 +22,9 @@ elif action == 'status':
                       'jobs': [{'job': 'j1', 'state': 'running', 'exit_code': None, 'agent_run': {'agent': 'codex'}}]}))
 elif action == 'logs':
     print(json.dumps({'ok': True, 'text': 'hello', 'next_offset': 5}))
+elif action == 'acquire' and os.environ.get('FAKE_AGENT_REFUSE'):
+    print(json.dumps({'ok': False, 'error': 'subprocess failed: python3; command output was not displayed'}))
+    sys.exit(1)
 elif action == 'sync' and os.environ.get('FAKE_AGENT_REFUSE'):
     print(json.dumps({'ok': False, 'error': 'remote workspace has unsaved files; no overwrite'}))
     sys.exit(1)
@@ -82,7 +85,67 @@ class GcpWorkerTest(Sandbox):
         (self.leases / f'lease-{task}.json').write_text(json.dumps(record))
 
     def calls(self):
-        return [json.loads(line) for line in self.agent_log.read_text().splitlines()]
+        """agent.py argv without --config (see configs())."""
+        out = []
+        for line in self.agent_log.read_text().splitlines():
+            argv = json.loads(line)
+            if '--config' in argv:
+                i = argv.index('--config')
+                del argv[i:i + 2]
+            out.append(argv)
+        return out
+
+    def configs(self):
+        found = []
+        for line in self.agent_log.read_text().splitlines():
+            argv = json.loads(line)
+            found.append(json.loads(Path(argv[argv.index('--config') + 1]).read_text()) if '--config' in argv else None)
+        return found
+
+    def test_lease_config_is_passed_once_a_lease_exists(self):
+        self.lease('heavy')
+        self.config(self.provider + 'zone = "us-central1-a"\n')
+        config.machine('heavy').status()
+        self.assertEqual(self.configs(), [{'project': 'proj', 'zone': 'us-central1-b'}])
+
+    def test_zone_override_applies_to_new_leases(self):
+        (self.kit / 'config.example.json').write_text(json.dumps({'project': 'proj', 'zone': 'us-central1-b', 'subnet': 's'}))
+        self.config(self.provider + '[machines.big]\nprovider = "gcp-worker"\ntask = "big"\nzone = "us-central1-c"\n'
+                    'create = { lease = "1h" }\n')
+        config.machine('big').up(apply=False)
+        self.assertEqual(self.configs(), [{'project': 'proj', 'zone': 'us-central1-c', 'subnet': 's'}])
+        self.config(self.provider + '[machines.big]\nprovider = "gcp-worker"\nzone = "nope"\ncreate = {}\n')
+        with self.assertRaisesRegex(CloudsheepError, 'invalid zone'):
+            config.machine('big').up(apply=False)
+
+    def test_pending_lease_status_and_forget(self):
+        self.lease('heavy', instance_id=None)
+        self.config(self.provider)
+        heavy = config.machine('heavy')
+        status = heavy.status()
+        self.assertEqual((status['state'], status['vm']), ('pending', 'bundle-agent-0123'))
+        self.assertIn('cloudsheep up heavy --yes', status['hint'])
+        self.assertFalse(self.agent_log.exists())          # no agent.py call: it would refuse
+        self.assertFalse(heavy.down_wants_repo(False))
+        os.environ['FAKE_GCLOUD_INSTANCES'] = 'bundle-agent-0123'
+        with self.assertRaisesRegex(CloudsheepError, 'exists; resume'):
+            heavy.down(apply=True)
+        os.environ['FAKE_GCLOUD_INSTANCES'] = 'some-other-vm'
+        plan = heavy.down(apply=False)
+        self.assertIn('forgets the unfinished lease', plan['effect'])
+        self.assertTrue((self.leases / 'lease-heavy.json').exists())
+        heavy.down(apply=True)
+        self.assertFalse((self.leases / 'lease-heavy.json').exists())
+        self.assertEqual(len(list(self.leases.glob('lease-heavy.json.abandoned-*'))), 1)
+        self.assertEqual(list(config.machines()), [])
+
+    def test_failed_acquire_explains_the_pending_lease(self):
+        self.lease('heavy', instance_id=None)
+        os.environ['FAKE_AGENT_REFUSE'] = '1'
+        self.config(self.provider)
+        with self.assertRaisesRegex(CloudsheepError, 'cloudsheep down heavy --yes. drops it') as caught:
+            config.machine('heavy').up(apply=True)
+        self.assertIn('GPU capacity', str(caught.exception))
 
     def test_discovers_unreleased_leases(self):
         self.lease('heavy')
@@ -184,7 +247,8 @@ class GcpWorkerTest(Sandbox):
         self.assertIn('--ssh-flag=-L127.0.0.1:16080:127.0.0.1:6080', heavy.tunnel_argv(16080, 6080))
         self.assertEqual(heavy.port_presets()['novnc'], 6080)
         native = heavy.native_argv(['run-agent', '--job', 'x'])
-        self.assertEqual(native[-5:], ['run-agent', '--task', 'heavy', '--job', 'x'])
+        self.assertEqual(native[3], 'run-agent')
+        self.assertEqual(native[-4:], ['--task', 'heavy', '--job', 'x'])
 
     def test_unbound_lease_refuses_interactive(self):
         self.lease('heavy', instance_id=None)
