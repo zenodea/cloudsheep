@@ -1,0 +1,18 @@
+# cloudsheep keybindings for herdr. Paste into ~/.config/herdr/config.toml
+# (adjust the path if cloudsheep lives elsewhere), then `herdr server reload-config`.
+
+# u: pick a machine and an action (shell, logs, tunnel, sync, collect, up/down, ...)
+[[keys.command]]
+key = "prefix+u"
+type = "popup"
+command = "~/Work/cloudsheep/herdr/cloudsheep-pick.sh"
+description = "cloudsheep"
+width = "70%"
+height = "60%"
+
+# shift+u: start/stop background notifications (job done, lease expiring)
+[[keys.command]]
+key = "prefix+shift+u"
+type = "shell"
+command = "~/Work/cloudsheep/herdr/cloudsheep-watch.sh toggle"
+description = "cloudsheep: toggle watch"

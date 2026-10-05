@@ -1,0 +1,52 @@
+# cloudsheep machines: ~/.config/cloudsheep/machines.toml
+# Every machine has a provider; each provider supports a different set of
+# operations (`cloudsheep caps NAME`). Uncomment and edit what you use.
+
+# --- Plain SSH: any VM or box you can ssh into -------------------------------
+# [machines.devbox]
+# provider = "ssh"
+# host = "devbox.example.com"
+# user = "ubuntu"
+# # port = 22
+# # identity_file = "~/.ssh/id_ed25519"
+# # proxy_jump = "bastion.example.com"
+# # proxy_command = "aws ssm start-session --target i-0123 --document-name AWS-StartSSHSession --parameters portNumber=%p"
+# workdir = "~/src/myrepo"           # where sync puts the source and shells start
+# exclude = ["data/"]                # extra paths never synced
+# ports = { app = 3000 }             # tunnel presets: `cloudsheep tunnel devbox app`
+# # Optional lifecycle hooks, run locally:
+# # up = "gcloud compute instances start devbox --zone europe-west2-a"
+# # down = "gcloud compute instances stop devbox --zone europe-west2-a"
+
+# --- Anything with a CLI: Lima, Multipass, OrbStack, Tart, ... ---------------
+# [machines.lima]
+# provider = "command"
+# instance = "default"
+# status = "limactl list {instance} --json"
+# shell = "limactl shell {instance}"
+# run = "limactl shell {instance} -- {cmd}"
+# up = "limactl start {instance}"
+# down = "limactl stop {instance}"
+#
+# [machines.mp]
+# provider = "command"
+# instance = "primary"
+# status = "multipass info {instance} --format json"
+# shell = "multipass shell {instance}"
+# run = "multipass exec {instance} -- {cmd}"
+# up = "multipass start {instance}"
+# down = "multipass stop {instance}"
+
+# --- bundle's disposable GCP workers (scripts/gcp-worker/agent.py) -----------
+# With this table, every unreleased lease shows up as a machine named after its task.
+# [providers.gcp-worker]
+# kit = "~/Work/bundle/scripts/gcp-worker"
+# repo = "~/Work/bundle"            # default for sync/collect/down
+# # ssh_user = "you_example_com"    # OS Login user for ssh-config (looked up if unset)
+#
+# To acquire one, describe it (then `cloudsheep up heavy`, `--yes` to apply):
+# [machines.heavy]
+# provider = "gcp-worker"
+# task = "heavy"
+# existing_name = "bundle-image-test-02"   # adopt an existing managed VM, or
+# # create = { lease = "1h", ttl = "4h" }  # create one (billable)
