@@ -33,5 +33,5 @@ class HookMixin:
     def down(self, apply, repo=None, branch=None):
         return self.run_hook('down', apply)
 
-    def extend(self, duration):
-        return self.run_hook('extend', True, duration=duration)
+    def extend(self, duration, apply):
+        return self.run_hook('extend', apply, duration=duration)

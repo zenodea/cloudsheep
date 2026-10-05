@@ -141,7 +141,11 @@ class Machine:
     def down(self, apply: bool, repo: Path | None, branch: str | None) -> dict:
         raise Unsupported('down')
 
-    def extend(self, duration: str) -> dict:
+    def down_wants_repo(self, explicit: bool) -> bool:
+        """Whether `down` should collect into a local repository first."""
+        return False
+
+    def extend(self, duration: str, apply: bool) -> dict:
         raise Unsupported('extend')
 
     def submit_job(self, command: list[str], job: str) -> dict:

@@ -171,31 +171,33 @@ def cmd_collect(args):
     emit(args, machine.collect(repo_for(args, machine), args.branch, args.include))
 
 
-def cmd_up(args):
-    machine = config.machine(args.name)
-    machine.require('up')
-    result = machine.up(apply=args.yes)
-    emit(args, result)
+def planned(args):
     if not args.yes and not args.json:
         sys.stdout.flush()
         print('\nnothing done; rerun with --yes to apply', file=sys.stderr)
+
+
+def cmd_up(args):
+    machine = config.machine(args.name)
+    machine.require('up')
+    emit(args, machine.up(apply=args.yes))
+    planned(args)
 
 
 def cmd_down(args):
     machine = config.machine(args.name)
     machine.require('down')
-    repo = repo_for(args, machine) if (args.repo or machine.provider == 'gcp-worker' and not args.no_repo) else None
-    result = machine.down(apply=args.yes, repo=repo, branch=args.branch)
-    emit(args, result)
-    if not args.yes and not args.json:
-        sys.stdout.flush()
-        print('\nnothing done; rerun with --yes to apply', file=sys.stderr)
+    wants = not args.no_repo and machine.down_wants_repo(explicit=bool(args.repo))
+    repo = repo_for(args, machine) if wants else None
+    emit(args, machine.down(apply=args.yes, repo=repo, branch=args.branch))
+    planned(args)
 
 
 def cmd_extend(args):
     machine = config.machine(args.name)
     machine.require('extend')
-    emit(args, machine.extend(args.duration))
+    emit(args, machine.extend(args.duration, apply=args.yes))
+    planned(args)
 
 
 def cmd_job(args):
@@ -427,11 +429,12 @@ def parser():
     c.add_argument('--yes', action='store_true', help='actually do it')
     c = add('down', cmd_down, 'stop/release the machine (shows the plan unless --yes)')
     c.add_argument('--yes', action='store_true', help='actually do it')
-    c.add_argument('--repo', help='collect into this repository first (gcp-worker)')
-    c.add_argument('--no-repo', action='store_true', help='release an adopted gcp worker without collecting')
+    c.add_argument('--repo', help='collect into this repository first (gcp-worker; required for created workers)')
+    c.add_argument('--no-repo', action='store_true', help='never collect (refused for created gcp workers)')
     c.add_argument('--branch')
-    c = add('extend', cmd_extend, 'extend the machine lease')
+    c = add('extend', cmd_extend, 'extend the machine lease (shows the plan unless --yes)')
     c.add_argument('duration', help='e.g. 2h')
+    c.add_argument('--yes', action='store_true', help='actually do it')
     c = add('job', cmd_job, 'start a detached job that survives disconnects')
     c.add_argument('--job', help='job id (lowercase, digits, hyphens)')
     c.add_argument('command', nargs='*', help='command, after --')

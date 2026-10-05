@@ -177,6 +177,11 @@ class GcpWorkerMachine(Machine):
                     'would_run': shlex.join(self.agent('acquire', *args)), 'plan': plan.get('arguments')}
         return {'machine': self.name, 'action': 'up', 'applied': True, **run_json(self.agent('acquire', *args), timeout=1800)}
 
+    def down_wants_repo(self, explicit):
+        # Created workers must be collected before deletion; adopted ones only when asked.
+        lease = self.lease()
+        return explicit or bool(lease and not lease.get('released') and not lease.get('adopted'))
+
     def down(self, apply, repo=None, branch=None):
         lease = self.bound_lease()
         args = []
@@ -186,15 +191,23 @@ class GcpWorkerMachine(Machine):
             raise CloudsheepError('releasing a created worker collects first and deletes the VM; pass --repo')
         if branch:
             args += ['--branch', branch]
-        effect = 'relinquishes the lease; the VM is kept' if lease.get('adopted') else 'collects, then DELETES the VM'
+        collect = 'collects into a new branch, then ' if repo is not None else ''
+        effect = (f'{collect}relinquishes the lease; the VM is kept' if lease.get('adopted')
+                  else f'{collect}DELETES the VM')
         if not apply:
             return {'machine': self.name, 'action': 'down', 'applied': False, 'effect': effect,
                     'would_run': shlex.join(self.agent('release', *args))}
         return {'machine': self.name, 'action': 'down', 'applied': True, 'effect': effect,
                 **run_json(self.agent('release', *args), timeout=1800)}
 
-    def extend(self, duration):
-        return run_json(self.agent('renew', '--for', duration))
+    def extend(self, duration, apply):
+        lease = self.bound_lease()
+        if not apply:
+            return {'machine': self.name, 'action': 'extend', 'applied': False,
+                    'effect': f"soft lease set to {duration} from now, capped at {lease.get('native_termination_time')}",
+                    'would_run': shlex.join(self.agent('renew', '--for', duration))}
+        return {'machine': self.name, 'action': 'extend', 'applied': True,
+                **run_json(self.agent('renew', '--for', duration))}
 
     def submit_job(self, command, job):
         return run_json(self.agent('exec', '--job', job, '--', *command))

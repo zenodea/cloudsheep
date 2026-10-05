@@ -67,15 +67,20 @@ case "$action" in
     "$cs" collect "$machine" --repo "$cwd"; pause ;;
   extend)
     read -rp "extend for (e.g. 2h): " duration
-    [[ -n $duration ]] && "$cs" extend "$machine" "$duration"
+    if [[ -n $duration ]]; then
+      "$cs" extend "$machine" "$duration" || fail "plan failed"
+      echo; confirm "Apply this?" && "$cs" extend "$machine" "$duration" --yes
+    fi
     pause ;;
   up)
     "$cs" up "$machine" || fail "plan failed"
     echo; confirm "Apply this?" && "$cs" up "$machine" --yes
     pause ;;
   down)
-    "$cs" down "$machine" --repo "$cwd" || fail "plan failed"
-    echo; confirm "Apply this?" && "$cs" down "$machine" --repo "$cwd" --yes
+    # Runs from the focused pane's directory: gcp workers that must collect use its repo
+    # (or the configured one); other machines ignore it.
+    (cd "$cwd" && "$cs" down "$machine") || fail "plan failed"
+    echo; confirm "Apply this?" && (cd "$cwd" && "$cs" down "$machine" --yes)
     pause ;;
   ssh-config)
     "$cs" ssh-config "$machine"; pause ;;

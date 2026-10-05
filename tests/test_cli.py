@@ -27,6 +27,9 @@ provider = "ssh"
 host = "box.example"
 ports = {{ app = 3000 }}
 
+down = "echo stopping {{name}}"
+extend = "echo extend {{duration}}"
+
 [machines.lima]
 provider = "command"
 status = "printf '{{\\"state\\": \\"Running\\", \\"expires_at\\": \\"{soon}\\"}}'"
@@ -96,6 +99,18 @@ shell = "limactl shell default"
         self.assertEqual((args.tty, args.command), (True, ['ls', '-la']))
         args = cli.parser().parse_args(['job', 'box', '--job', 'b1', '--', 'make', '-j8'])
         self.assertEqual((args.job, args.command), ('b1', ['make', '-j8']))
+
+    def test_down_on_hook_machine_ignores_non_repo_cwd(self):
+        code, out, err = call('down', 'box', '--repo', str(self.tmp), '--yes')
+        self.assertEqual(code, 0, err)
+        self.assertIn('stopping box', out)
+
+    def test_extend_needs_yes(self):
+        code, out, err = call('extend', 'box', '2h')
+        self.assertIn("would_run: echo extend 2h", out)
+        self.assertIn('rerun with --yes', err)
+        _, out, _ = call('extend', 'box', '2h', '--yes')
+        self.assertIn('output: extend 2h', out)
 
     def test_up_without_hook_is_unsupported(self):
         code, _, err = call('up', 'box')

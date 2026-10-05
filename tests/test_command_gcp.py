@@ -146,8 +146,25 @@ class GcpWorkerTest(Sandbox):
     def test_down_adopted_without_repo(self):
         self.lease('heavy', adopted=True)
         self.config(self.provider)
-        plan = config.machine('heavy').down(apply=False)
-        self.assertIn('kept', plan['effect'])
+        heavy = config.machine('heavy')
+        self.assertFalse(heavy.down_wants_repo(explicit=False))
+        self.assertTrue(heavy.down_wants_repo(explicit=True))
+        plan = heavy.down(apply=False)
+        self.assertEqual(plan['effect'], 'relinquishes the lease; the VM is kept')
+        self.assertNotIn('--repo', plan['would_run'])
+        self.assertIn('collects', heavy.down(apply=False, repo=Path('/repo'))['effect'])
+
+    def test_extend_plans_unless_applied(self):
+        self.lease('heavy')
+        self.config(self.provider)
+        heavy = config.machine('heavy')
+        self.assertTrue(heavy.down_wants_repo(explicit=False))
+        plan = heavy.extend('2h', apply=False)
+        self.assertFalse(plan['applied'])
+        self.assertIn('2026-10-05T14:00:00Z', plan['effect'])
+        self.assertFalse(self.agent_log.exists())
+        heavy.extend('2h', apply=True)
+        self.assertEqual(self.calls()[0], ['renew', '--task', 'heavy', '--for', '2h'])
 
     def test_interactive_argv(self):
         self.lease('heavy')
