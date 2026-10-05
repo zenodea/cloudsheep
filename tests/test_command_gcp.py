@@ -22,6 +22,16 @@ elif action == 'status':
                       'jobs': [{'job': 'j1', 'state': 'running', 'exit_code': None, 'agent_run': {'agent': 'codex'}}]}))
 elif action == 'logs':
     print(json.dumps({'ok': True, 'text': 'hello', 'next_offset': 5}))
+elif action == 'acquire' and os.environ.get('FAKE_AGENT_NOT_READY'):
+    count = os.environ['FAKE_AGENT_NOT_READY']
+    left = int(open(count).read())
+    if left:
+        open(count, 'w').write(str(left - 1))
+        print(json.dumps({'ok': False, 'error': 'worker application is not ready; resume acquisition after startup succeeds'}))
+        sys.exit(1)
+    lease = os.path.join(os.environ['FAKE_LEASES'], 'lease-heavy.json')
+    record = json.load(open(lease)); record['helper_installed'] = True; json.dump(record, open(lease, 'w'))
+    print(json.dumps({'ok': True, 'action': action}))
 elif action == 'acquire' and os.environ.get('FAKE_AGENT_REFUSE'):
     print(json.dumps({'ok': False, 'error': 'subprocess failed: python3; command output was not displayed'}))
     sys.exit(1)
@@ -80,6 +90,7 @@ class GcpWorkerTest(Sandbox):
 
     def lease(self, task, **fields):
         record = {'task': task, 'name': 'bundle-agent-0123', 'adopted': False, 'instance_id': '42',
+                  'helper_installed': True,
                   'native_termination_time': '2026-10-05T14:00:00Z',
                   'config': {'project': 'proj', 'zone': 'us-central1-b'}, **fields}
         (self.leases / f'lease-{task}.json').write_text(json.dumps(record))
@@ -138,6 +149,24 @@ class GcpWorkerTest(Sandbox):
         self.assertFalse((self.leases / 'lease-heavy.json').exists())
         self.assertEqual(len(list(self.leases.glob('lease-heavy.json.abandoned-*'))), 1)
         self.assertEqual(list(config.machines()), [])
+
+    def test_starting_worker_status_and_up_waits(self):
+        from cloudsheep.providers import gcp_worker
+        self.lease('heavy', helper_installed=False)          # bound, but helper not installed yet
+        self.config(self.provider)
+        heavy = config.machine('heavy')
+        self.assertEqual(heavy.status()['state'], 'starting')
+        self.assertFalse(self.agent_log.exists())
+        counter = self.tmp / 'not-ready'
+        counter.write_text('2')
+        os.environ.update({'FAKE_AGENT_NOT_READY': str(counter), 'FAKE_LEASES': str(self.leases)})
+        saved, gcp_worker.STARTUP_POLL = gcp_worker.STARTUP_POLL, 0
+        try:
+            self.assertTrue(heavy.up(apply=True)['applied'])
+        finally:
+            gcp_worker.STARTUP_POLL = saved
+        self.assertEqual([c[0] for c in self.calls()], ['acquire'] * 3)
+        self.assertEqual(heavy.status()['state'], 'RUNNING')
 
     def test_failed_acquire_explains_the_pending_lease(self):
         self.lease('heavy', instance_id=None)

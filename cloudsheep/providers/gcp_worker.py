@@ -19,10 +19,12 @@ call uses the lease's own config, as agent.py requires.
 from __future__ import annotations
 
 import fcntl
+import sys
 import hashlib
 import json
 import re
 import shlex
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +33,8 @@ from ..core import CloudsheepError, Machine, run, run_json, state_dir
 TASK = re.compile(r'[a-z0-9][a-z0-9-]{0,47}')
 REMOTE_ROOT = '/home/agent/.local/share/bundle-worker-agent/tasks'
 LEASE_STATE = '~/.local/state/bundle-worker-agent'
+STARTUP_WAIT = 20 * 60   # a fresh worker's startup script takes several minutes
+STARTUP_POLL = 20
 ZONE = re.compile(r'[a-z]+-[a-z]+[0-9]+-[a-z]')
 
 
@@ -124,6 +128,11 @@ class GcpWorkerMachine(Machine):
         """acquire started (the reservation is saved) but never bound a VM, e.g. no GPU capacity."""
         return bool(lease and not lease.get('released') and not lease.get('instance_id'))
 
+    @staticmethod
+    def starting(lease) -> bool:
+        """A VM is bound but acquire hasn't installed the helper yet (startup script still running)."""
+        return bool(lease and not lease.get('released') and lease.get('instance_id') and not lease.get('helper_installed'))
+
     def pending_hint(self) -> str:
         return (f'acquire did not finish; `cloudsheep up {self.name} --yes` retries it, '
                 f'`cloudsheep down {self.name} --yes` drops it if no VM was created')
@@ -168,6 +177,11 @@ class GcpWorkerMachine(Machine):
         if self.pending(lease):
             return {'machine': self.name, 'task': self.task, 'state': 'pending', 'vm': lease['name'],
                     'zone': lease['config']['zone'], 'hint': self.pending_hint()}
+        if self.starting(lease):
+            return {'machine': self.name, 'task': self.task, 'state': 'starting', 'vm': lease['name'],
+                    'zone': lease['config']['zone'], 'hard_deadline': lease.get('native_termination_time'),
+                    'hint': f'the VM exists but acquire has not finished; `cloudsheep up {self.name} --yes` '
+                            'resumes it and waits for startup'}
         value = run_json(self.agent('status'), timeout=120)
         return {'machine': self.name, 'task': self.task, 'state': value.get('vm_status', 'unknown'),
                 'vm': lease['name'], 'zone': lease['config']['zone'], 'adopted': bool(lease.get('adopted')),
@@ -229,8 +243,19 @@ class GcpWorkerMachine(Machine):
             plan = run_json(self.agent('acquire', *args, dry_run=True))
             return {'machine': self.name, 'action': 'up', 'applied': False, 'billable_creation': create,
                     'would_run': shlex.join(self.agent('acquire', *args)), 'plan': plan.get('arguments')}
+        deadline = time.monotonic() + STARTUP_WAIT
         try:
-            value = run_json(self.agent('acquire', *args), timeout=1800)
+            while True:
+                try:
+                    value = run_json(self.agent('acquire', *args), timeout=1800)
+                    break
+                except CloudsheepError as error:
+                    # The VM exists and acquire is resumable: wait out the startup script.
+                    if not self.starting(self.lease()) or time.monotonic() > deadline:
+                        raise
+                    print(f'cloudsheep: {self.name} is starting up ({error}); retrying in {STARTUP_POLL}s',
+                          file=sys.stderr, flush=True)
+                    time.sleep(STARTUP_POLL)
         except CloudsheepError as error:
             if self.pending(self.lease()):
                 raise CloudsheepError(f'{error}\n{self.name}: {self.pending_hint()}. agent.py hides the failing '
